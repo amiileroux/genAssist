@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Records — genAssist</title>
+<link rel="stylesheet" href="/css/style.css" />
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">genAssist</div>
+  <nav>
+    <a href="/index.html">New Quotation</a>
+    <a href="/records.html" class="active">Records</a>
+  </nav>
+</header>
+
+<main class="page">
+  <h1>Saved quotations</h1>
+  <p class="muted">
+    Browse quotations by date and insurance type. Use the copy buttons to paste individual
+    fields — or a whole record — into another system.
+  </p>
+
+  <section class="card filter-bar">
+    <label>Insurance type
+      <select id="filter-type">
+        <option value="">All</option>
+        <option>Third Party</option>
+        <option>Comprehensive</option>
+        <option>Own Goods</option>
+        <option>General Cartage</option>
+        <option>Unspecified</option>
+      </select>
+    </label>
+    <label>From
+      <input type="date" id="filter-from" />
+    </label>
+    <label>To
+      <input type="date" id="filter-to" />
+    </label>
+    <label class="grow">Search (name, registration no., any field)
+      <input type="text" id="filter-q" placeholder="e.g. Toyota, or client name" />
+    </label>
+    <button class="btn-secondary" id="filter-apply">Filter</button>
+    <button class="btn-secondary" id="filter-clear">Clear</button>
+  </section>
+
+  <div id="records-list"></div>
+</main>
+
+<script src="/js/records.js"></script>
+</body>
+</html>

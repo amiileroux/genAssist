@@ -1,0 +1,180 @@
+(function () {
+  const DRIVER_COLS = ['name', 'dob', 'age', 'dpNo', 'issueDate', 'occupation'];
+  const ACCIDENT_COLS = ['driver', 'year', 'details'];
+
+  function addRow(tableId, cols) {
+    const table = document.getElementById(tableId);
+    const tbody = table.querySelector('tbody');
+    const tr = document.createElement('tr');
+    cols.forEach((col) => {
+      const td = document.createElement('td');
+      const input = document.createElement('input');
+      input.dataset.col = col;
+      td.appendChild(input);
+      tr.appendChild(td);
+    });
+    const actionTd = document.createElement('td');
+    const removeBtn = document.createElement('button');
+    removeBtn.type = 'button';
+    removeBtn.className = 'btn-remove';
+    removeBtn.textContent = '✕';
+    removeBtn.addEventListener('click', () => tr.remove());
+    actionTd.appendChild(removeBtn);
+    tr.appendChild(actionTd);
+    tbody.appendChild(tr);
+  }
+
+  document.querySelectorAll('[data-add]').forEach((btn) => {
+    const tableId = btn.dataset.add;
+    const cols = tableId === 'drivers-table' ? DRIVER_COLS : ACCIDENT_COLS;
+    btn.addEventListener('click', () => addRow(tableId, cols));
+  });
+  // seed one empty row each so the table isn't empty on load
+  addRow('drivers-table', DRIVER_COLS);
+  addRow('accidents-table', ACCIDENT_COLS);
+
+  function readTable(tableId, cols) {
+    const rows = [...document.querySelectorAll(`#${tableId} tbody tr`)];
+    return rows
+      .map((row) => {
+        const obj = {};
+        cols.forEach((col) => {
+          obj[col] = row.querySelector(`[data-col="${col}"]`).value.trim();
+        });
+        return obj;
+      })
+      .filter((obj) => Object.values(obj).some((v) => v));
+  }
+
+  function markAutoFilled(el) {
+    el.classList.add('ocr-filled');
+    el.title = 'Auto-filled from OCR — please verify';
+    el.addEventListener(
+      'input',
+      () => el.classList.remove('ocr-filled'),
+      { once: true }
+    );
+  }
+
+  function fillIfEmpty(id, value) {
+    if (!value) return;
+    const el = document.getElementById(id);
+    if (el && !el.value) {
+      el.value = value;
+      markAutoFilled(el);
+    }
+  }
+
+  // Modest, best-effort auto-fill per document type. Dates/codes are assigned
+  // positionally from whatever OCR found — always meant to be checked by a human.
+  function applyGuesses(slot, guesses) {
+    const dates = guesses.dates || [];
+    const codes = guesses.codes || [];
+    const plates = guesses.plates || [];
+
+    if (slot === 'dp') {
+      fillIfEmpty('dpNo', codes[0]);
+      fillIfEmpty('issueDate1', dates[0]);
+      fillIfEmpty('expiryDate1', dates[1]);
+    } else if (slot === 'vehicle') {
+      fillIfEmpty('registrationNo', plates[0]);
+      fillIfEmpty('chassisNo', codes[0]);
+      fillIfEmpty('engineNo', codes[1]);
+    } else if (slot === 'ncd') {
+      fillIfEmpty('previousInsurer', '');
+      const yearsMatch = (guesses.raw || '').match(/(\d+)\s*year/i);
+      if (yearsMatch) fillIfEmpty('noClaimDiscountYears', yearsMatch[1]);
+      fillIfEmpty('issueDate2', dates[0]);
+    }
+  }
+
+  document.querySelectorAll('.upload-slot').forEach((slotEl) => {
+    const slot = slotEl.dataset.slot;
+    const fileInput = slotEl.querySelector('[data-role="file-input"]');
+    const statusEl = slotEl.querySelector('[data-role="status"]');
+    const rawTextEl = slotEl.querySelector('[data-role="raw-text"]');
+
+    fileInput.addEventListener('change', async () => {
+      const file = fileInput.files[0];
+      if (!file) return;
+      statusEl.textContent = 'Extracting text… this can take a few seconds';
+      statusEl.className = 'upload-status pending';
+
+      const formData = new FormData();
+      formData.append('image', file);
+      formData.append('label', slot);
+
+      try {
+        const res = await fetch('/api/ocr', { method: 'POST', body: formData });
+        if (!res.ok) throw new Error((await res.json()).error || 'OCR failed');
+        const result = await res.json();
+
+        rawTextEl.value = result.text || '(no text detected)';
+        statusEl.textContent = `Done — uploaded as ${result.originalName}`;
+        statusEl.className = 'upload-status done';
+
+        slotEl.dataset.filename = result.filename;
+        slotEl.dataset.url = result.url;
+
+        applyGuesses(slot, { ...result.guesses, raw: result.text });
+      } catch (err) {
+        statusEl.textContent = `Error: ${err.message}`;
+        statusEl.className = 'upload-status error';
+      }
+    });
+  });
+
+  function collectImages() {
+    return [...document.querySelectorAll('.upload-slot')]
+      .filter((el) => el.dataset.filename)
+      .map((el) => ({
+        label: el.dataset.slot,
+        filename: el.dataset.filename,
+        url: el.dataset.url,
+      }));
+  }
+
+  const form = document.getElementById('quotation-form');
+  const saveStatus = document.getElementById('save-status');
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const fields = {};
+    new FormData(form).forEach((value, key) => {
+      fields[key] = value;
+    });
+    fields.additionalDrivers = readTable('drivers-table', DRIVER_COLS);
+    fields.accidentHistory = readTable('accidents-table', ACCIDENT_COLS);
+
+    saveStatus.textContent = 'Saving…';
+
+    try {
+      const res = await fetch('/api/quotations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          fields,
+          images: collectImages(),
+          insuranceType: fields.typeOfCoverage || 'Unspecified',
+        }),
+      });
+      if (!res.ok) throw new Error((await res.json()).error || 'Save failed');
+      const record = await res.json();
+      saveStatus.innerHTML = `Saved ✓ — <a href="/records.html">view in records</a>`;
+      form.reset();
+      document.querySelectorAll('.ocr-filled').forEach((el) => el.classList.remove('ocr-filled'));
+      document.querySelectorAll('.upload-slot').forEach((el) => {
+        delete el.dataset.filename;
+        delete el.dataset.url;
+        el.querySelector('[data-role="status"]').textContent = '';
+        el.querySelector('[data-role="raw-text"]').value = '';
+      });
+      document.querySelector('#drivers-table tbody').innerHTML = '';
+      document.querySelector('#accidents-table tbody').innerHTML = '';
+      addRow('drivers-table', DRIVER_COLS);
+      addRow('accidents-table', ACCIDENT_COLS);
+    } catch (err) {
+      saveStatus.textContent = `Error: ${err.message}`;
+    }
+  });
+})();

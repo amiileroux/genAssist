@@ -1,0 +1,228 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>New Quotation — genAssist</title>
+<link rel="stylesheet" href="/css/style.css" />
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">genAssist</div>
+  <nav>
+    <a href="/index.html" class="active">New Quotation</a>
+    <a href="/records.html">Records</a>
+  </nav>
+</header>
+
+<main class="page">
+  <h1>Motor Insurance — Quotation Intake</h1>
+  <p class="muted">
+    Upload the client's documents to auto-extract text, then review and complete the form below.
+    Handwritten entries are recognised imperfectly by OCR — always check auto-filled fields before saving.
+  </p>
+
+  <section class="card" id="upload-section">
+    <h2>1. Upload documents</h2>
+    <div class="upload-grid">
+      <div class="upload-slot" data-slot="dp">
+        <h3>Client DP / ID</h3>
+        <p class="hint">Photo of the client's identity/DP document</p>
+        <input type="file" accept="image/*" data-role="file-input" />
+        <div class="upload-status" data-role="status"></div>
+        <details class="ocr-text">
+          <summary>Extracted text</summary>
+          <textarea readonly rows="6" data-role="raw-text" placeholder="Nothing extracted yet"></textarea>
+        </details>
+      </div>
+
+      <div class="upload-slot" data-slot="vehicle">
+        <h3>Certified copy of vehicle</h3>
+        <p class="hint">Vehicle registration / certified copy document</p>
+        <input type="file" accept="image/*" data-role="file-input" />
+        <div class="upload-status" data-role="status"></div>
+        <details class="ocr-text">
+          <summary>Extracted text</summary>
+          <textarea readonly rows="6" data-role="raw-text" placeholder="Nothing extracted yet"></textarea>
+        </details>
+      </div>
+
+      <div class="upload-slot" data-slot="ncd">
+        <h3>No Claim Discount letter</h3>
+        <p class="hint">Optional — from previous insurer, if applicable</p>
+        <input type="file" accept="image/*" data-role="file-input" />
+        <div class="upload-status" data-role="status"></div>
+        <details class="ocr-text">
+          <summary>Extracted text</summary>
+          <textarea readonly rows="6" data-role="raw-text" placeholder="Nothing extracted yet"></textarea>
+        </details>
+      </div>
+    </div>
+  </section>
+
+  <form id="quotation-form">
+    <section class="card">
+      <h2>2. Proposer details</h2>
+      <div class="field-grid">
+        <label>Name (Owner/s)
+          <input name="proposerName" id="proposerName" autocomplete="off" />
+        </label>
+        <label>Contact No.
+          <input name="contactNo" autocomplete="off" />
+        </label>
+        <label>Date of Birth #1 (DD/MM/YYYY)
+          <input name="dob1" placeholder="DD/MM/YYYY" />
+        </label>
+        <label>Date of Birth #2 (DD/MM/YYYY)
+          <input name="dob2" placeholder="DD/MM/YYYY" />
+        </label>
+        <label class="span-2">Address
+          <input name="address" autocomplete="off" />
+        </label>
+        <label>Email
+          <input name="email" type="email" autocomplete="off" />
+        </label>
+        <label>DP No/s.
+          <input name="dpNo" id="dpNo" autocomplete="off" />
+        </label>
+        <label>Issue Date #1
+          <input name="issueDate1" id="issueDate1" placeholder="DD/MM/YYYY" />
+        </label>
+        <label>Expiry Date #1
+          <input name="expiryDate1" id="expiryDate1" placeholder="DD/MM/YYYY" />
+        </label>
+        <label>Issue Date #2
+          <input name="issueDate2" id="issueDate2" placeholder="DD/MM/YYYY" />
+        </label>
+        <label>Expiry Date #2
+          <input name="expiryDate2" placeholder="DD/MM/YYYY" />
+        </label>
+        <label>Occupation/Business #1
+          <input name="occupation1" autocomplete="off" />
+        </label>
+        <label>Occupation/Business #2
+          <input name="occupation2" autocomplete="off" />
+        </label>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>3. Vehicle details</h2>
+      <div class="field-grid">
+        <label>Make
+          <input name="make" autocomplete="off" />
+        </label>
+        <label>Model
+          <input name="model" autocomplete="off" />
+        </label>
+        <label>Use of vehicle
+          <input name="useOfVehicle" autocomplete="off" />
+        </label>
+        <label>Registration No.
+          <input name="registrationNo" id="registrationNo" autocomplete="off" />
+        </label>
+        <label>Year of manufacture
+          <input name="yearOfManufacture" autocomplete="off" />
+        </label>
+        <label>Seating capacity
+          <input name="seatingCapacity" autocomplete="off" />
+        </label>
+        <label>CC/HP
+          <input name="ccHp" autocomplete="off" />
+        </label>
+        <label>Chassis No.
+          <input name="chassisNo" id="chassisNo" autocomplete="off" />
+        </label>
+        <label>Engine No.
+          <input name="engineNo" id="engineNo" autocomplete="off" />
+        </label>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>4. Coverage details</h2>
+      <div class="field-grid">
+        <label>Type of coverage
+          <select name="typeOfCoverage" id="typeOfCoverage">
+            <option value="">— select —</option>
+            <option>Third Party</option>
+            <option>Comprehensive</option>
+            <option>Own Goods</option>
+            <option>General Cartage</option>
+          </select>
+        </label>
+        <label>Value / Sum insured (Comprehensive only)
+          <input name="valueSumInsured" autocomplete="off" />
+        </label>
+        <label>Is vehicle mortgaged?
+          <select name="vehicleMortgaged">
+            <option value="">— select —</option>
+            <option>Yes</option>
+            <option>No</option>
+          </select>
+        </label>
+        <label>Financial institution
+          <input name="financialInstitution" autocomplete="off" />
+        </label>
+        <label>Previous insurer
+          <input name="previousInsurer" id="previousInsurer" autocomplete="off" />
+        </label>
+        <label>No Claim Discount (years)
+          <input name="noClaimDiscountYears" id="noClaimDiscountYears" autocomplete="off" />
+        </label>
+        <label>Anti-theft devices
+          <input name="antiTheftDevices" autocomplete="off" />
+        </label>
+        <label>Windscreen limit ($)
+          <input name="windscreenLimit" autocomplete="off" />
+        </label>
+        <label>Loss of use
+          <select name="lossOfUse"><option value="">— select —</option><option>Yes</option><option>No</option></select>
+        </label>
+        <label>Waiver of excess
+          <select name="waiverOfExcess"><option value="">— select —</option><option>Yes</option><option>No</option></select>
+        </label>
+        <label>Personal accident
+          <select name="personalAccident"><option value="">— select —</option><option>Yes</option><option>No</option></select>
+        </label>
+        <label>Special perils
+          <select name="specialPerils"><option value="">— select —</option><option>Yes</option><option>No</option></select>
+        </label>
+        <label class="span-2">Windscreen (Third-Party Private, on request) $
+          <input name="windscreenThirdPartyPrivate" autocomplete="off" />
+        </label>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>5. Additional driver(s) information</h2>
+      <table class="dyn-table" id="drivers-table">
+        <thead>
+          <tr><th>Name</th><th>D.O.B</th><th>Age</th><th>DP No.</th><th>Issue date</th><th>Occupation</th><th></th></tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+      <button type="button" class="btn-secondary" data-add="drivers-table">+ Add driver</button>
+    </section>
+
+    <section class="card">
+      <h2>6. Driver(s) / accident history (last 3 years)</h2>
+      <table class="dyn-table" id="accidents-table">
+        <thead>
+          <tr><th>Driver</th><th>Year</th><th>Brief details of accident</th><th></th></tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+      <button type="button" class="btn-secondary" data-add="accidents-table">+ Add accident record</button>
+    </section>
+
+    <div class="submit-row">
+      <button type="submit" class="btn-primary">Save quotation</button>
+      <span id="save-status" class="muted"></span>
+    </div>
+  </form>
+</main>
+
+<script src="/js/new-quotation.js"></script>
+</body>
+</html>

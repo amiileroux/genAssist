@@ -1,0 +1,26 @@
+{
+  "name": "genassist",
+  "version": "1.0.0",
+  "description": "",
+  "main": "server/index.js",
+  "scripts": {
+    "start": "node server/index.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/amiileroux/genAssist.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/amiileroux/genAssist/issues"
+  },
+  "homepage": "https://github.com/amiileroux/genAssist#readme",
+  "dependencies": {
+    "express": "^5.2.1",
+    "multer": "^2.4.0",
+    "tesseract.js": "^7.0.0"
+  }
+}
