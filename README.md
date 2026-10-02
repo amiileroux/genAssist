@@ -89,23 +89,35 @@ works the same way — they all give you an SMTP host/user/password.
 
 Running `npm start` only serves `http://localhost:3000` on whatever machine
 runs it — for every agent to use the *same* link, it needs to run on a server
-with a public URL instead of a laptop. This app has no database server or
-other infrastructure dependency (SQLite is just a file), so it runs on
-almost any Node.js host with **persistent disk** (the `data/` folder must
-survive restarts/redeploys — plain "serverless" platforms typically wipe
-local disk between invocations, so avoid those for this app). Reasonable,
-inexpensive options:
+with a public URL instead of a laptop, and with **persistent disk** (the
+`data/` folder must survive restarts/redeploys — plain "serverless"
+platforms typically wipe local disk between invocations, so avoid those).
 
-- A small VPS (DigitalOcean, Linode, Hetzner) running `npm start` behind a
-  process manager like `pm2`, with a reverse proxy (Caddy/nginx) for HTTPS.
-- A PaaS with a persistent volume (Render, Railway, Fly.io) — attach a volume
-  mounted at `data/`.
+I can't create a hosting account or pay for one on your behalf, but I did
+commit a ready-to-use [Render](https://render.com) blueprint
+(`render.yaml`) so the deploy itself is close to one click:
 
-I didn't pick one or deploy it myself — hosting needs an account (and
-usually a small monthly cost) that's yours to choose and own, and I don't
-have credentials for any hosting provider on your behalf. Once you've picked
-one and have an account, I can walk through connecting this repo to it and
-setting the environment variables above.
+1. Create a free Render account at render.com and connect it to your GitHub.
+2. In the Render dashboard: **New +** → **Blueprint** → pick the
+   `amiileroux/genAssist` repo → branch `claude/amazing-shannon-1d3yul` (or
+   `main`, once this is merged there).
+3. Render reads `render.yaml` and sets up a web service with a 1GB
+   persistent disk mounted at `data/` automatically. It'll prompt you to
+   fill in a few environment variables it left blank on purpose (secrets
+   don't belong in the repo) — `SMTP_HOST`, `SMTP_USER`, `SMTP_PASS`,
+   `EMAIL_FROM` — see "Email sending" above for where those come from.
+4. Click **Apply** / **Deploy**. Render builds it and gives you a public
+   URL like `https://genassist.onrender.com` — that's the one link to hand
+   to all 60+ agents.
+
+Cost: Render's `starter` plan (needed for the persistent disk) runs about
+**$7/month** plus roughly $0.25/GB/month for the disk — there's no
+realistic way to get persistent storage for free on a managed platform.
+If you'd rather avoid any recurring cost, the cheapest path is a small VPS
+(Hetzner/DigitalOcean, ~$4–6/month) running `npm start` under `pm2` behind
+Caddy for HTTPS — more setup, same idea. Tell me which way you want to go
+and I'll either walk the Render blueprint through with you step by step, or
+write out the VPS setup commands.
 
 ## Project layout
 
