@@ -177,6 +177,7 @@
 
         slotEl.dataset.filename = result.filename;
         slotEl.dataset.url = result.url;
+        slotEl.dataset.originalName = result.originalName;
 
         applyGuesses(slot, { ...result.guesses, raw: result.text });
       } catch (err) {
@@ -193,6 +194,7 @@
         label: el.dataset.slot,
         filename: el.dataset.filename,
         url: el.dataset.url,
+        originalName: el.dataset.originalName || '',
       }));
   }
 
@@ -275,6 +277,7 @@
       document.querySelectorAll('.upload-slot').forEach((el) => {
         delete el.dataset.filename;
         delete el.dataset.url;
+        delete el.dataset.originalName;
         el.querySelector('[data-role="status"]').textContent = '';
         el.querySelector('[data-role="raw-text"]').value = '';
       });

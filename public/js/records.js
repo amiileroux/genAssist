@@ -37,6 +37,23 @@
     windscreenThirdPartyPrivate: 'Windscreen (TP Private)',
   };
 
+  // Mirrors server/fieldLabels.js's FIELD_SECTIONS — groups the same
+  // fields under the paper form's headings for "Copy all fields as text".
+  const FIELD_SECTIONS = [
+    {
+      title: 'PROPOSER DETAILS',
+      keys: ['proposerName', 'contactNo', 'dob1', 'dob2', 'address', 'email', 'dpNo', 'issueDate1', 'expiryDate1', 'issueDate2', 'expiryDate2', 'occupation1', 'occupation2'],
+    },
+    {
+      title: 'VEHICLE DETAILS',
+      keys: ['make', 'model', 'useOfVehicle', 'registrationNo', 'yearOfManufacture', 'seatingCapacity', 'ccHp', 'chassisNo', 'engineNo'],
+    },
+    {
+      title: 'COVERAGE DETAILS',
+      keys: ['typeOfCoverage', 'valueSumInsured', 'vehicleMortgaged', 'financialInstitution', 'previousInsurer', 'noClaimDiscountYears', 'antiTheftDevices', 'windscreenLimit', 'lossOfUse', 'waiverOfExcess', 'personalAccident', 'specialPerils', 'windscreenThirdPartyPrivate'],
+    },
+  ];
+
   const listEl = document.getElementById('records-list');
   let adminEmail = 'amii.aral@enbfocus.com';
 
@@ -125,16 +142,28 @@
 
   function buildCopyAllText(record) {
     const lines = [];
-    Object.entries(FIELD_LABELS).forEach(([key, label]) => {
-      const v = record.fields[key];
-      if (v) lines.push(`${label}: ${v}`);
+    FIELD_SECTIONS.forEach((section) => {
+      const sectionLines = section.keys
+        .map((key) => [FIELD_LABELS[key], record.fields[key]])
+        .filter(([, v]) => v)
+        .map(([label, v]) => `${label}: ${v}`);
+      if (sectionLines.length) {
+        if (lines.length) lines.push('');
+        lines.push(section.title, ...sectionLines);
+      }
     });
-    (record.fields.additionalDrivers || []).forEach((d, i) => {
-      lines.push(`Additional driver ${i + 1}: ${d.name || ''} | DOB ${d.dob || ''} | Age ${d.age || ''} | DP ${d.dpNo || ''} | Issued ${d.issueDate || ''} | ${d.occupation || ''}`);
-    });
-    (record.fields.accidentHistory || []).forEach((a, i) => {
-      lines.push(`Accident ${i + 1}: Driver ${a.driver || ''} | Year ${a.year || ''} | ${a.details || ''}`);
-    });
+    if ((record.fields.additionalDrivers || []).length) {
+      lines.push('', 'ADDITIONAL DRIVER(S)');
+      record.fields.additionalDrivers.forEach((d, i) => {
+        lines.push(`Driver ${i + 1}: ${d.name || ''} | DOB ${d.dob || ''} | Age ${d.age || ''} | DP ${d.dpNo || ''} | Issued ${d.issueDate || ''} | ${d.occupation || ''}`);
+      });
+    }
+    if ((record.fields.accidentHistory || []).length) {
+      lines.push('', 'ACCIDENT HISTORY (LAST 3 YEARS)');
+      record.fields.accidentHistory.forEach((a, i) => {
+        lines.push(`Accident ${i + 1}: Driver ${a.driver || ''} | Year ${a.year || ''} | ${a.details || ''}`);
+      });
+    }
     return lines.join('\n');
   }
 

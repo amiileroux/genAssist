@@ -2,7 +2,7 @@ const path = require('node:path');
 const fs = require('node:fs');
 const nodemailer = require('nodemailer');
 const { UPLOADS_DIR } = require('./db');
-const { FIELD_LABELS } = require('./fieldLabels');
+const { FIELD_LABELS, FIELD_SECTIONS } = require('./fieldLabels');
 
 // Every send is always copied to this fixed oversight address, in addition
 // to whichever email(s) the agent types in at send time. Override with
@@ -29,34 +29,69 @@ function getTransporter() {
   return transporter;
 }
 
+// Every line is "Label: value" on its own row, on purpose — that's what
+// makes each one independently selectable and pasteable into another
+// system's form field, one line at a time. Section headers group them to
+// match the paper form, but add no punctuation that would get caught up
+// in a line-by-line copy.
 function buildBodyText(record) {
   const lines = [
     `New motor insurance quotation saved by ${record.agentName || 'an agent'}.`,
     `Saved at: ${record.createdAt}`,
     `Insurance type: ${record.insuranceType}`,
-    '',
   ];
-  Object.entries(FIELD_LABELS).forEach(([key, label]) => {
-    const v = record.fields[key];
-    if (v) lines.push(`${label}: ${v}`);
+
+  FIELD_SECTIONS.forEach((section) => {
+    const sectionLines = section.keys
+      .map((key) => [FIELD_LABELS[key], record.fields[key]])
+      .filter(([, v]) => v)
+      .map(([label, v]) => `${label}: ${v}`);
+    if (sectionLines.length) {
+      lines.push('', section.title, ...sectionLines);
+    }
   });
-  (record.fields.additionalDrivers || []).forEach((d, i) => {
-    lines.push(
-      `Additional driver ${i + 1}: ${d.name || ''} | DOB ${d.dob || ''} | Age ${d.age || ''} | DP ${d.dpNo || ''} | Issued ${d.issueDate || ''} | ${d.occupation || ''}`
-    );
-  });
-  (record.fields.accidentHistory || []).forEach((a, i) => {
-    lines.push(`Accident ${i + 1}: Driver ${a.driver || ''} | Year ${a.year || ''} | ${a.details || ''}`);
-  });
+
+  if ((record.fields.additionalDrivers || []).length) {
+    lines.push('', 'ADDITIONAL DRIVER(S)');
+    record.fields.additionalDrivers.forEach((d, i) => {
+      lines.push(
+        `Driver ${i + 1}: ${d.name || ''} | DOB ${d.dob || ''} | Age ${d.age || ''} | DP ${d.dpNo || ''} | Issued ${d.issueDate || ''} | ${d.occupation || ''}`
+      );
+    });
+  }
+
+  if ((record.fields.accidentHistory || []).length) {
+    lines.push('', 'ACCIDENT HISTORY (LAST 3 YEARS)');
+    record.fields.accidentHistory.forEach((a, i) => {
+      lines.push(`Accident ${i + 1}: Driver ${a.driver || ''} | Year ${a.year || ''} | ${a.details || ''}`);
+    });
+  }
+
   return lines.join('\n');
 }
 
+// Strips characters that could break out of an email header (CR/LF) or
+// confuse a filesystem on the receiving end, while leaving the rest of the
+// agent's original filename intact and readable.
+function sanitizeFilename(name) {
+  return String(name || '').replace(/[\r\n"\\/\x00-\x1f]/g, '').trim();
+}
+
+// Attaches each uploaded file exactly as it was stored on disk — nothing
+// here reads, re-encodes, resizes, or otherwise modifies the bytes before
+// sending. nodemailer streams the file straight from `path`.
 function buildAttachments(record) {
   return (record.images || [])
     .map((img) => {
       const filePath = path.join(UPLOADS_DIR, img.filename);
       if (!fs.existsSync(filePath)) return null;
-      return { filename: `${img.label}-${img.filename}`, path: filePath };
+      const original = sanitizeFilename(img.originalName);
+      const ext = path.extname(img.filename);
+      const displayName = original || img.filename;
+      const labeled = displayName.toLowerCase().startsWith(String(img.label || '').toLowerCase())
+        ? displayName
+        : `${img.label}-${displayName}`;
+      return { filename: labeled.endsWith(ext) ? labeled : `${labeled}${ext}`, path: filePath };
     })
     .filter(Boolean);
 }
@@ -108,4 +143,4 @@ async function sendQuotationEmail(record, recipients) {
   }
 }
 
-module.exports = { sendQuotationEmail, ADMIN_EMAIL, isConfigured };
+module.exports = { sendQuotationEmail, ADMIN_EMAIL, isConfigured, buildBodyText, buildAttachments };

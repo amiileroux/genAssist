@@ -38,4 +38,22 @@ const FIELD_LABELS = {
   windscreenThirdPartyPrivate: 'Windscreen (TP Private)',
 };
 
-module.exports = { FIELD_LABELS };
+// Groups the same fields under the paper form's section headings, so an
+// emailed quotation reads in clear blocks instead of one flat list, while
+// each line stays independently copy-pasteable ("Label: value").
+const FIELD_SECTIONS = [
+  {
+    title: 'PROPOSER DETAILS',
+    keys: ['proposerName', 'contactNo', 'dob1', 'dob2', 'address', 'email', 'dpNo', 'issueDate1', 'expiryDate1', 'issueDate2', 'expiryDate2', 'occupation1', 'occupation2'],
+  },
+  {
+    title: 'VEHICLE DETAILS',
+    keys: ['make', 'model', 'useOfVehicle', 'registrationNo', 'yearOfManufacture', 'seatingCapacity', 'ccHp', 'chassisNo', 'engineNo'],
+  },
+  {
+    title: 'COVERAGE DETAILS',
+    keys: ['typeOfCoverage', 'valueSumInsured', 'vehicleMortgaged', 'financialInstitution', 'previousInsurer', 'noClaimDiscountYears', 'antiTheftDevices', 'windscreenLimit', 'lossOfUse', 'waiverOfExcess', 'personalAccident', 'specialPerils', 'windscreenThirdPartyPrivate'],
+  },
+];
+
+module.exports = { FIELD_LABELS, FIELD_SECTIONS };
