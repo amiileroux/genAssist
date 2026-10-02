@@ -2,6 +2,66 @@
   const DRIVER_COLS = ['name', 'dob', 'age', 'dpNo', 'issueDate', 'occupation'];
   const ACCIDENT_COLS = ['driver', 'year', 'details'];
 
+  const AGENT_STORAGE_KEY = 'genassist_agent_id';
+  let currentAgentId = localStorage.getItem(AGENT_STORAGE_KEY) || null;
+
+  async function loadConfig() {
+    try {
+      const res = await fetch('/api/config');
+      const cfg = await res.json();
+      document.getElementById('admin-email-label').textContent = cfg.adminEmail;
+      document.getElementById('email-config-warning').hidden = cfg.emailConfigured;
+    } catch (err) {
+      // non-fatal — the form still works, it just won't know the admin address yet
+    }
+  }
+
+  async function loadAgent() {
+    if (!currentAgentId) return;
+    const statusEl = document.getElementById('agent-status');
+    try {
+      const res = await fetch(`/api/agents/${currentAgentId}`);
+      if (!res.ok) throw new Error('not found');
+      const agent = await res.json();
+      document.getElementById('agent-name').value = agent.name;
+      document.getElementById('agent-own-email').value = agent.ownEmail;
+      document.getElementById('agent-additional-email').value = agent.additionalContactEmail || '';
+      statusEl.textContent = `Saved ✓ — signed in as ${agent.name}`;
+    } catch (err) {
+      currentAgentId = null;
+      localStorage.removeItem(AGENT_STORAGE_KEY);
+    }
+  }
+
+  document.getElementById('agent-save').addEventListener('click', async () => {
+    const name = document.getElementById('agent-name').value.trim();
+    const ownEmail = document.getElementById('agent-own-email').value.trim();
+    const additionalContactEmail = document.getElementById('agent-additional-email').value.trim();
+    const statusEl = document.getElementById('agent-status');
+    if (!name || !ownEmail) {
+      statusEl.textContent = 'Name and your email are required.';
+      return;
+    }
+    statusEl.textContent = 'Saving…';
+    try {
+      const res = await fetch('/api/agents', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: currentAgentId, name, ownEmail, additionalContactEmail }),
+      });
+      if (!res.ok) throw new Error((await res.json()).error || 'Save failed');
+      const agent = await res.json();
+      currentAgentId = agent.id;
+      localStorage.setItem(AGENT_STORAGE_KEY, agent.id);
+      statusEl.textContent = `Saved ✓ — signed in as ${agent.name}`;
+    } catch (err) {
+      statusEl.textContent = `Error: ${err.message}`;
+    }
+  });
+
+  loadConfig();
+  loadAgent();
+
   function addRow(tableId, cols) {
     const table = document.getElementById(tableId);
     const tbody = table.querySelector('tbody');
@@ -139,6 +199,14 @@
 
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
+
+    if (!currentAgentId) {
+      saveStatus.textContent = 'Please save your details above first, so we know where to send this quotation.';
+      document.getElementById('agent-section').scrollIntoView({ behavior: 'smooth' });
+      document.getElementById('agent-name').focus();
+      return;
+    }
+
     const fields = {};
     new FormData(form).forEach((value, key) => {
       fields[key] = value;
@@ -156,11 +224,19 @@
           fields,
           images: collectImages(),
           insuranceType: fields.typeOfCoverage || 'Unspecified',
+          agentId: currentAgentId,
         }),
       });
       if (!res.ok) throw new Error((await res.json()).error || 'Save failed');
       const record = await res.json();
-      saveStatus.innerHTML = `Saved ✓ — <a href="/records.html">view in records</a>`;
+
+      const emailNote =
+        record.emailStatus?.status === 'sent'
+          ? `emailed to ${record.emailStatus.to.join(', ')}`
+          : record.emailStatus?.status === 'failed'
+            ? 'but the email could not be sent (saved locally — see Records)'
+            : 'saved locally — email sending is not yet configured on this server';
+      saveStatus.innerHTML = `Saved ✓ — ${emailNote}. <a href="/records.html">View in records</a>, or fill in the next client below.`;
       form.reset();
       document.querySelectorAll('.ocr-filled').forEach((el) => el.classList.remove('ocr-filled'));
       document.querySelectorAll('.upload-slot').forEach((el) => {

@@ -22,6 +22,33 @@
     Handwritten entries are recognised imperfectly by OCR — always check auto-filled fields before saving.
   </p>
 
+  <section class="card" id="agent-section">
+    <h2>Your details</h2>
+    <p class="muted">
+      Every quotation you save is emailed to you, to <span id="admin-email-label">the office</span>,
+      and to your saved additional contact below. Set this up once per device.
+    </p>
+    <div id="email-config-warning" class="banner-warning" hidden>
+      Email sending isn't configured on this server yet, so quotations will be saved locally only
+      until that's set up — see the README.
+    </div>
+    <div class="field-grid" id="agent-form">
+      <label>Your name
+        <input id="agent-name" autocomplete="off" />
+      </label>
+      <label>Your email (quotations are sent here)
+        <input id="agent-own-email" type="email" autocomplete="off" />
+      </label>
+      <label>Additional contact to also notify (optional, saved for next time)
+        <input id="agent-additional-email" type="email" autocomplete="off" />
+      </label>
+    </div>
+    <div class="submit-row">
+      <button type="button" class="btn-secondary" id="agent-save">Save my details</button>
+      <span id="agent-status" class="muted"></span>
+    </div>
+  </section>
+
   <section class="card" id="upload-section">
     <h2>1. Upload documents</h2>
     <div class="upload-grid">

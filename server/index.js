@@ -3,8 +3,19 @@ const crypto = require('node:crypto');
 const express = require('express');
 const multer = require('multer');
 
-const { UPLOADS_DIR, insertQuotation, getQuotation, listQuotations, deleteQuotation } = require('./db');
+const {
+  UPLOADS_DIR,
+  upsertAgent,
+  getAgent,
+  listAgents,
+  insertQuotation,
+  setQuotationEmailStatus,
+  getQuotation,
+  listQuotations,
+  deleteQuotation,
+} = require('./db');
 const { extractText, guessFields } = require('./ocr');
+const { sendQuotationEmail, ADMIN_EMAIL, isConfigured } = require('./email');
 
 const PORT = process.env.PORT || 3000;
 const app = express();
@@ -76,18 +87,59 @@ app.post('/api/ocr', upload.single('image'), async (req, res) => {
   }
 });
 
-app.post('/api/quotations', (req, res) => {
-  const { fields, images, insuranceType } = req.body || {};
+app.get('/api/config', (req, res) => {
+  res.json({ adminEmail: ADMIN_EMAIL, emailConfigured: isConfigured() });
+});
+
+app.post('/api/agents', (req, res) => {
+  const { id, name, ownEmail, additionalContactEmail } = req.body || {};
+  if (!name || !ownEmail) {
+    return res.status(400).json({ error: 'name and ownEmail are required' });
+  }
+  res.status(201).json(upsertAgent({ id, name, ownEmail, additionalContactEmail }));
+});
+
+app.get('/api/agents', (req, res) => {
+  res.json(listAgents());
+});
+
+app.get('/api/agents/:id', (req, res) => {
+  const agent = getAgent(req.params.id);
+  if (!agent) return res.status(404).json({ error: 'Not found' });
+  res.json(agent);
+});
+
+app.post('/api/quotations', async (req, res) => {
+  const { fields, images, insuranceType, agentId } = req.body || {};
   if (!fields || typeof fields !== 'object') {
     return res.status(400).json({ error: 'fields object is required' });
   }
-  const record = insertQuotation({ fields, images: images || [], insuranceType });
+  const agent = agentId ? getAgent(agentId) : null;
+  if (agentId && !agent) {
+    return res.status(400).json({ error: 'Unknown agentId — save an agent profile first' });
+  }
+
+  let record = insertQuotation({
+    fields,
+    images: images || [],
+    insuranceType,
+    agentId: agent?.id,
+    agentName: agent?.name,
+  });
+
+  const emailStatus = await withTimeout(
+    sendQuotationEmail(record, agent),
+    20000,
+    'Email send timed out'
+  ).catch((err) => ({ status: 'failed', error: err.message, attemptedAt: new Date().toISOString() }));
+  record = setQuotationEmailStatus(record.id, emailStatus);
+
   res.status(201).json(record);
 });
 
 app.get('/api/quotations', (req, res) => {
-  const { insuranceType, from, to, q } = req.query;
-  res.json(listQuotations({ insuranceType, from, to, q }));
+  const { insuranceType, from, to, q, agentId } = req.query;
+  res.json(listQuotations({ insuranceType, from, to, q, agentId }));
 });
 
 app.get('/api/quotations/:id', (req, res) => {

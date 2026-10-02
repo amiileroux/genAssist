@@ -39,6 +39,36 @@
 
   const listEl = document.getElementById('records-list');
 
+  function emailStatusLabel(emailStatus) {
+    if (!emailStatus || !emailStatus.status) return 'Not sent';
+    switch (emailStatus.status) {
+      case 'sent':
+        return `Emailed to ${emailStatus.to.join(', ')}`;
+      case 'failed':
+        return `Email failed: ${emailStatus.error || 'unknown error'}`;
+      case 'skipped':
+        return 'Not emailed — SMTP not configured on server';
+      default:
+        return 'Not sent';
+    }
+  }
+
+  async function loadAgentFilter() {
+    try {
+      const res = await fetch('/api/agents');
+      const agents = await res.json();
+      const select = document.getElementById('filter-agent');
+      agents.forEach((agent) => {
+        const opt = document.createElement('option');
+        opt.value = agent.id;
+        opt.textContent = agent.name;
+        select.appendChild(opt);
+      });
+    } catch (err) {
+      // non-fatal — filter just stays "All"
+    }
+  }
+
   function formatDateTime(iso) {
     const d = new Date(iso);
     return d.toLocaleString();
@@ -100,12 +130,22 @@
     card.className = 'card record-card';
 
     const summary = document.createElement('summary');
-    summary.innerHTML = `
-      <span class="record-type badge">${record.insuranceType || 'Unspecified'}</span>
-      <span class="record-name">${record.proposerName || '(no name)'}</span>
-      <span class="record-reg">${record.registrationNo || ''}</span>
-      <span class="record-date muted">${formatDateTime(record.createdAt)}</span>
-    `;
+    const badge = document.createElement('span');
+    badge.className = 'record-type badge';
+    badge.textContent = record.insuranceType || 'Unspecified';
+    const nameSpan = document.createElement('span');
+    nameSpan.className = 'record-name';
+    nameSpan.textContent = record.proposerName || '(no name)';
+    const regSpan = document.createElement('span');
+    regSpan.className = 'record-reg';
+    regSpan.textContent = record.registrationNo || '';
+    const agentSpan = document.createElement('span');
+    agentSpan.className = 'record-agent muted';
+    agentSpan.textContent = record.agentName ? `Agent: ${record.agentName}` : '';
+    const dateSpan = document.createElement('span');
+    dateSpan.className = 'record-date muted';
+    dateSpan.textContent = formatDateTime(record.createdAt);
+    summary.append(badge, nameSpan, regSpan, agentSpan, dateSpan);
     card.appendChild(summary);
 
     const body = document.createElement('div');
@@ -127,6 +167,9 @@
     });
     topBar.append(copyAllBtn, deleteBtn);
     body.appendChild(topBar);
+
+    body.appendChild(fieldRow('Agent', record.agentName || '(no agent recorded)'));
+    body.appendChild(fieldRow('Email status', emailStatusLabel(record.emailStatus)));
 
     Object.entries(FIELD_LABELS).forEach(([key, label]) => {
       body.appendChild(fieldRow(label, record.fields[key]));
@@ -179,7 +222,9 @@
     const from = document.getElementById('filter-from').value;
     const to = document.getElementById('filter-to').value;
     const q = document.getElementById('filter-q').value;
+    const agentId = document.getElementById('filter-agent').value;
     if (type) params.set('insuranceType', type);
+    if (agentId) params.set('agentId', agentId);
     if (from) params.set('from', new Date(from).toISOString());
     if (to) params.set('to', new Date(to + 'T23:59:59').toISOString());
     if (q) params.set('q', q);
@@ -215,11 +260,13 @@
   document.getElementById('filter-apply').addEventListener('click', load);
   document.getElementById('filter-clear').addEventListener('click', () => {
     document.getElementById('filter-type').value = '';
+    document.getElementById('filter-agent').value = '';
     document.getElementById('filter-from').value = '';
     document.getElementById('filter-to').value = '';
     document.getElementById('filter-q').value = '';
     load();
   });
 
+  loadAgentFilter();
   load();
 })();

@@ -60,6 +60,16 @@ h1 { margin-bottom: 4px; }
 
 .card h2 { margin-top: 0; font-size: 1.1rem; }
 
+.banner-warning {
+  background: #fff6e0;
+  border: 1px solid #e0c870;
+  color: #7a5a00;
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-size: 0.85rem;
+  margin-bottom: 14px;
+}
+
 .upload-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
