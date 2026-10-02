@@ -4,10 +4,9 @@ const nodemailer = require('nodemailer');
 const { UPLOADS_DIR } = require('./db');
 const { FIELD_LABELS } = require('./fieldLabels');
 
-// Every submission is always copied to this fixed oversight address, in
-// addition to the submitting agent and their saved additional contact.
-// Override with ADMIN_EMAIL if amii.aral@enbfocus.com was a typo for the
-// intended domain.
+// Every send is always copied to this fixed oversight address, in addition
+// to whichever email(s) the agent types in at send time. Override with
+// ADMIN_EMAIL if amii.aral@enbfocus.com was a typo for the intended domain.
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'amii.aral@enbfocus.com';
 
 let transporter = null;
@@ -62,15 +61,26 @@ function buildAttachments(record) {
     .filter(Boolean);
 }
 
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+function parseRecipients(input) {
+  const raw = Array.isArray(input) ? input : String(input || '').split(/[,;]/);
+  return [...new Set(raw.map((e) => e.trim()).filter((e) => EMAIL_RE.test(e)))];
+}
+
 /**
- * Sends the saved quotation (data + source document images) to the
- * submitting agent, the fixed oversight address, and the agent's saved
- * additional contact, if any. Never throws — returns a status object the
+ * Sends the saved quotation (data + source document images) to whichever
+ * email address(es) were typed in for this send, always including the
+ * fixed oversight address. Never throws — returns a status object the
  * caller can persist and show in the Records view instead.
  */
-async function sendQuotationEmail(record, agent) {
-  const to = [agent?.ownEmail, ADMIN_EMAIL, agent?.additionalContactEmail].filter(Boolean);
-  const uniqueTo = [...new Set(to)];
+async function sendQuotationEmail(record, recipients) {
+  const typed = parseRecipients(recipients);
+  const uniqueTo = [...new Set([...typed, ADMIN_EMAIL])];
+
+  if (!typed.length) {
+    return { status: 'failed', to: uniqueTo, error: 'No valid email address entered', attemptedAt: new Date().toISOString() };
+  }
 
   if (!isConfigured()) {
     if (!warnedNotConfigured) {

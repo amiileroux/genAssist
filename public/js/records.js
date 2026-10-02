@@ -38,18 +38,31 @@
   };
 
   const listEl = document.getElementById('records-list');
+  let adminEmail = 'amii.aral@enbfocus.com';
+
+  async function loadConfig() {
+    try {
+      const res = await fetch('/api/config');
+      const cfg = await res.json();
+      adminEmail = cfg.adminEmail;
+    } catch (err) {
+      // non-fatal — falls back to the default above
+    }
+  }
 
   function emailStatusLabel(emailStatus) {
-    if (!emailStatus || !emailStatus.status) return 'Not sent';
+    if (!emailStatus || !emailStatus.status || emailStatus.status === 'unsent') {
+      return 'Not sent yet';
+    }
     switch (emailStatus.status) {
       case 'sent':
-        return `Emailed to ${emailStatus.to.join(', ')}`;
+        return `Sent ✓ to ${emailStatus.to.join(', ')}`;
       case 'failed':
-        return `Email failed: ${emailStatus.error || 'unknown error'}`;
+        return `Send failed: ${emailStatus.error || 'unknown error'}`;
       case 'skipped':
-        return 'Not emailed — SMTP not configured on server';
+        return 'Not sent — SMTP not configured on server';
       default:
-        return 'Not sent';
+        return 'Not sent yet';
     }
   }
 
@@ -125,6 +138,54 @@
     return lines.join('\n');
   }
 
+  function buildSendRow(record) {
+    const row = document.createElement('div');
+    row.className = 'send-row';
+
+    const statusLine = document.createElement('div');
+    statusLine.className = 'send-row-status muted';
+    statusLine.textContent = emailStatusLabel(record.emailStatus);
+
+    const controls = document.createElement('div');
+    controls.className = 'send-row-controls';
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.placeholder = 'name@example.com, another@example.com';
+    input.value = (record.emailStatus?.to || []).filter((e) => e !== adminEmail).join(', ');
+    const sendBtn = document.createElement('button');
+    sendBtn.type = 'button';
+    sendBtn.className = 'btn-secondary';
+    sendBtn.textContent = 'Send';
+    sendBtn.addEventListener('click', async () => {
+      const emails = input.value.trim();
+      if (!emails) {
+        statusLine.textContent = 'Type at least one email address first.';
+        return;
+      }
+      sendBtn.disabled = true;
+      statusLine.textContent = 'Sending…';
+      try {
+        const res = await fetch(`/api/quotations/${record.id}/send`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ emails }),
+        });
+        const updated = await res.json();
+        if (!res.ok) throw new Error(updated.error || 'Send failed');
+        record.emailStatus = updated.emailStatus;
+        statusLine.textContent = emailStatusLabel(updated.emailStatus);
+      } catch (err) {
+        statusLine.textContent = `Error: ${err.message}`;
+      } finally {
+        sendBtn.disabled = false;
+      }
+    });
+    controls.append(input, sendBtn);
+
+    row.append(statusLine, controls);
+    return row;
+  }
+
   function renderRecord(record) {
     const card = document.createElement('details');
     card.className = 'card record-card';
@@ -169,7 +230,7 @@
     body.appendChild(topBar);
 
     body.appendChild(fieldRow('Agent', record.agentName || '(no agent recorded)'));
-    body.appendChild(fieldRow('Email status', emailStatusLabel(record.emailStatus)));
+    body.appendChild(buildSendRow(record));
 
     Object.entries(FIELD_LABELS).forEach(([key, label]) => {
       body.appendChild(fieldRow(label, record.fields[key]));
@@ -267,6 +328,6 @@
     load();
   });
 
+  loadConfig().then(load);
   loadAgentFilter();
-  load();
 })();

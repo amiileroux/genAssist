@@ -99,7 +99,7 @@ function insertQuotation(record) {
     record.agentName || null,
     JSON.stringify(record.fields || {}),
     JSON.stringify(record.images || []),
-    JSON.stringify({ status: 'pending' })
+    JSON.stringify({ status: 'unsent' })
   );
   return getQuotation(id);
 }

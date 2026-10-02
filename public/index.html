@@ -23,28 +23,29 @@
   </p>
 
   <section class="card" id="agent-section">
-    <h2>Your details</h2>
+    <h2>Your name</h2>
     <p class="muted">
-      Every quotation you save is emailed to you, to <span id="admin-email-label">the office</span>,
-      and to your saved additional contact below. Set this up once per device.
+      Shown against your submissions in Records. Fill it in and keep going — saving it below just
+      remembers it (and a default email to prefill the send box with) on this device for next time.
     </p>
     <div id="email-config-warning" class="banner-warning" hidden>
-      Email sending isn't configured on this server yet, so quotations will be saved locally only
-      until that's set up — see the README.
+      Email sending isn't configured on this server yet — <span id="admin-email-label">the office address</span>
+      and anything you type below will be saved with each record, but not actually emailed, until
+      that's set up. See the README.
     </div>
     <div class="field-grid" id="agent-form">
       <label>Your name
         <input id="agent-name" autocomplete="off" />
       </label>
-      <label>Your email (quotations are sent here)
+      <label>Your email (optional, prefills the send box)
         <input id="agent-own-email" type="email" autocomplete="off" />
       </label>
-      <label>Additional contact to also notify (optional, saved for next time)
+      <label>Default additional contact (optional, also prefilled)
         <input id="agent-additional-email" type="email" autocomplete="off" />
       </label>
     </div>
     <div class="submit-row">
-      <button type="button" class="btn-secondary" id="agent-save">Save my details</button>
+      <button type="button" class="btn-secondary" id="agent-save">Remember my details on this device</button>
       <span id="agent-status" class="muted"></span>
     </div>
   </section>
@@ -248,6 +249,24 @@
       <span id="save-status" class="muted"></span>
     </div>
   </form>
+
+  <section class="card" id="send-section" hidden>
+    <h2>Send this quotation</h2>
+    <p class="muted">
+      Type in whichever email address(es) this should go to (comma-separated for more than one —
+      e.g. the client, a colleague, yourself). <span id="admin-email-label-2">The office address</span>
+      is always included automatically.
+    </p>
+    <div class="field-grid">
+      <label class="span-2">Send to
+        <input type="text" id="send-to-input" placeholder="name@example.com, another@example.com" />
+      </label>
+    </div>
+    <div class="submit-row">
+      <button type="button" class="btn-primary" id="send-btn">Send</button>
+      <span id="send-status" class="muted"></span>
+    </div>
+  </section>
 </main>
 
 <script src="/js/new-quotation.js"></script>

@@ -3,29 +3,33 @@
 A web app for agents to build new motor insurance quotations, built around the
 paper "Motor Insurance — Quotation Form":
 
-1. **Your details** (top of `/index.html`) — each agent enters their name,
-   their own email, and (optionally) one additional contact email to notify —
-   once per device. It's saved and reused for every quotation that agent
-   submits afterwards; there's no login to manage.
-2. **New Quotation** (`/index.html`) — upload a photo of the client's DP/ID,
+1. **New Quotation** (`/index.html`) — upload a photo of the client's DP/ID,
    the certified copy of the vehicle, and (if applicable) their No Claim
    Discount letter. Each upload is run through OCR and used to best-effort
    auto-fill a few fields (DP number, dates, registration/chassis/engine
    numbers). The full quotation form mirrors the paper form (proposer
    details, vehicle details, coverage details, additional drivers, accident
-   history) and everything stays editable. After saving, the form clears and
-   is immediately ready for the next client — agents can reuse the same link
-   indefinitely, one submission after another.
-3. **Automatic email on save** — every saved quotation (its data and the
-   uploaded document images) is emailed to three places: the submitting
-   agent's own email, a fixed oversight address (`amii.aral@enbfocus.com` by
-   default — see "Email sending" below to change it), and that agent's saved
-   additional contact, if they set one.
-4. **Records** (`/records.html`) — every saved quotation, filterable by
+   history) and everything stays editable. There's no login and nothing to
+   set up first — an agent opens the link, fills in a client, and saves.
+2. **Send to whichever email(s) you type in** — once a quotation is saved,
+   a box appears to type in any email address(es) it should go to (the
+   client, a colleague, yourself — comma-separated for more than one). That
+   send always also includes a fixed oversight address
+   (`amii.aral@enbfocus.com` by default — see "Email sending" below to
+   change it). There's an optional "Your name" / "Your email" panel above
+   the form that just remembers your name (shown in Records) and prefills
+   the send box next time — it's a convenience, not a requirement, and the
+   form can be saved and reused without ever touching it.
+3. **Records** (`/records.html`) — every saved quotation, filterable by
    date, insurance type, agent, or free text. Each record expands into a
    list of fields with a **Copy** button next to every line (plus a **Copy
    all fields as text** button) so you can paste values straight into
-   another system, and shows whether its email actually sent.
+   another system. It also has its own "send to" box, so a record can be
+   (re)sent to anyone, any time, even long after it was first saved.
+
+The same link is meant to be reused indefinitely by many agents at once —
+there's no per-agent setup gate, no session limit, and the form resets and
+is ready for the next client immediately after each save.
 
 Records are grouped automatically by the date/time they were saved.
 
@@ -55,13 +59,14 @@ images are kept in `data/uploads/`). Emailing quotations out (see below) is
 the one piece that talks to an outside service, by design — that's the
 feature.
 
-## Email sending (required for the "send to agent + office" behaviour)
+## Email sending (required for the "send to whichever email" button to actually send)
 
-Without this configured, quotations still save normally — the Records page
-will just show **"Not emailed — SMTP not configured on server"** for each
-one, and nothing crashes. To turn emailing on, set these environment
-variables before `npm start` (e.g. in a `.env` file loaded by your process
-manager, or directly in your hosting platform's secret/env settings):
+Without this configured, quotations still save normally and the send box
+still accepts whatever's typed into it — pressing Send will just come back
+with **"Not sent — SMTP not configured on server"**, and nothing crashes.
+To turn emailing on, set these environment variables before `npm start`
+(e.g. in a `.env` file loaded by your process manager, or directly in your
+hosting platform's secret/env settings):
 
 | Variable | Required | Example | Notes |
 |---|---|---|---|
@@ -109,7 +114,7 @@ server/
   index.js        — Express app, routes for OCR, agents, and quotation CRUD
   db.js            — SQLite storage (node:sqlite, no native build step)
   ocr.js           — tesseract.js wrapper + best-effort field guessing
-  email.js         — sends the saved quotation + images to agent/office/contact
+  email.js         — sends a saved quotation + images to whichever email(s) were typed in
   fieldLabels.js   — shared field-name → label map used in emails
 public/
   index.html, js/new-quotation.js   — agent profile + intake form

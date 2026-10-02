@@ -9,7 +9,9 @@
     try {
       const res = await fetch('/api/config');
       const cfg = await res.json();
-      document.getElementById('admin-email-label').textContent = cfg.adminEmail;
+      document.querySelectorAll('#admin-email-label, #admin-email-label-2').forEach((el) => {
+        el.textContent = cfg.adminEmail;
+      });
       document.getElementById('email-config-warning').hidden = cfg.emailConfigured;
     } catch (err) {
       // non-fatal — the form still works, it just won't know the admin address yet
@@ -196,16 +198,40 @@
 
   const form = document.getElementById('quotation-form');
   const saveStatus = document.getElementById('save-status');
+  const sendSection = document.getElementById('send-section');
+  const sendToInput = document.getElementById('send-to-input');
+  const sendStatus = document.getElementById('send-status');
+  let lastSavedRecordId = null;
+
+  document.getElementById('send-btn').addEventListener('click', async () => {
+    if (!lastSavedRecordId) return;
+    const emails = sendToInput.value.trim();
+    if (!emails) {
+      sendStatus.textContent = 'Type at least one email address first.';
+      return;
+    }
+    sendStatus.textContent = 'Sending…';
+    try {
+      const res = await fetch(`/api/quotations/${lastSavedRecordId}/send`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ emails }),
+      });
+      const record = await res.json();
+      if (!res.ok) throw new Error(record.error || 'Send failed');
+      sendStatus.textContent =
+        record.emailStatus?.status === 'sent'
+          ? `Sent ✓ to ${record.emailStatus.to.join(', ')}`
+          : record.emailStatus?.status === 'skipped'
+            ? 'Not sent — email isn’t configured on this server yet (see README)'
+            : `Could not send: ${record.emailStatus?.error || 'unknown error'}`;
+    } catch (err) {
+      sendStatus.textContent = `Error: ${err.message}`;
+    }
+  });
 
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
-
-    if (!currentAgentId) {
-      saveStatus.textContent = 'Please save your details above first, so we know where to send this quotation.';
-      document.getElementById('agent-section').scrollIntoView({ behavior: 'smooth' });
-      document.getElementById('agent-name').focus();
-      return;
-    }
 
     const fields = {};
     new FormData(form).forEach((value, key) => {
@@ -213,6 +239,10 @@
     });
     fields.additionalDrivers = readTable('drivers-table', DRIVER_COLS);
     fields.accidentHistory = readTable('accidents-table', ACCIDENT_COLS);
+
+    const agentName = document.getElementById('agent-name').value.trim();
+    const agentOwnEmail = document.getElementById('agent-own-email').value.trim();
+    const agentAdditionalEmail = document.getElementById('agent-additional-email').value.trim();
 
     saveStatus.textContent = 'Saving…';
 
@@ -225,18 +255,21 @@
           images: collectImages(),
           insuranceType: fields.typeOfCoverage || 'Unspecified',
           agentId: currentAgentId,
+          agentName,
         }),
       });
       if (!res.ok) throw new Error((await res.json()).error || 'Save failed');
       const record = await res.json();
 
-      const emailNote =
-        record.emailStatus?.status === 'sent'
-          ? `emailed to ${record.emailStatus.to.join(', ')}`
-          : record.emailStatus?.status === 'failed'
-            ? 'but the email could not be sent (saved locally — see Records)'
-            : 'saved locally — email sending is not yet configured on this server';
-      saveStatus.innerHTML = `Saved ✓ — ${emailNote}. <a href="/records.html">View in records</a>, or fill in the next client below.`;
+      saveStatus.innerHTML = `Saved ✓ — <a href="/records.html">view in records</a>. Use the box below to send it, then fill in the next client.`;
+      lastSavedRecordId = record.id;
+      sendStatus.textContent = '';
+      sendToInput.value = [agentOwnEmail, agentAdditionalEmail].filter(Boolean).join(', ');
+      sendSection.hidden = false;
+      sendSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+      // agent-name/own-email/additional-email live outside this <form>, so
+      // form.reset() below intentionally leaves them in place for reuse.
       form.reset();
       document.querySelectorAll('.ocr-filled').forEach((el) => el.classList.remove('ocr-filled'));
       document.querySelectorAll('.upload-slot').forEach((el) => {

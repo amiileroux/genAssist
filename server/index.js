@@ -109,32 +109,42 @@ app.get('/api/agents/:id', (req, res) => {
   res.json(agent);
 });
 
-app.post('/api/quotations', async (req, res) => {
-  const { fields, images, insuranceType, agentId } = req.body || {};
+app.post('/api/quotations', (req, res) => {
+  const { fields, images, insuranceType, agentId, agentName } = req.body || {};
   if (!fields || typeof fields !== 'object') {
     return res.status(400).json({ error: 'fields object is required' });
   }
+  // agentId is optional (set only if the agent saved a profile); agentName
+  // is free text so a record is always attributable even without one.
   const agent = agentId ? getAgent(agentId) : null;
-  if (agentId && !agent) {
-    return res.status(400).json({ error: 'Unknown agentId — save an agent profile first' });
-  }
 
-  let record = insertQuotation({
+  const record = insertQuotation({
     fields,
     images: images || [],
     insuranceType,
     agentId: agent?.id,
-    agentName: agent?.name,
+    agentName: agentName || agent?.name,
   });
 
+  res.status(201).json(record);
+});
+
+// Collected quotation data is sent out on demand: the agent (or anyone
+// revisiting a saved record) types in whichever email(s) it should go to,
+// and this sends the data + source document images there. The fixed
+// oversight address is always included alongside whatever was typed.
+app.post('/api/quotations/:id/send', async (req, res) => {
+  const record = getQuotation(req.params.id);
+  if (!record) return res.status(404).json({ error: 'Not found' });
+
+  const { emails } = req.body || {};
   const emailStatus = await withTimeout(
-    sendQuotationEmail(record, agent),
+    sendQuotationEmail(record, emails),
     20000,
     'Email send timed out'
   ).catch((err) => ({ status: 'failed', error: err.message, attemptedAt: new Date().toISOString() }));
-  record = setQuotationEmailStatus(record.id, emailStatus);
 
-  res.status(201).json(record);
+  res.json(setQuotationEmailStatus(record.id, emailStatus));
 });
 
 app.get('/api/quotations', (req, res) => {
