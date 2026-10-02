@@ -85,39 +85,63 @@ Verification enabled on that Google account) used as `SMTP_HOST=smtp.gmail.com`,
 deliverability, a transactional email provider (Resend, Mailgun, SES, etc.)
 works the same way — they all give you an SMTP host/user/password.
 
-## Deploying so 60+ agents can share one link
+## Deploying so 60+ agents can share one link — for free
 
 Running `npm start` only serves `http://localhost:3000` on whatever machine
 runs it — for every agent to use the *same* link, it needs to run on a server
 with a public URL instead of a laptop, and with **persistent disk** (the
-`data/` folder must survive restarts/redeploys — plain "serverless"
-platforms typically wipe local disk between invocations, so avoid those).
+`data/` folder must survive restarts/redeploys). Persistent disk is the
+part that rules out most "free tier" managed platforms (Render/Railway's
+free web services wipe local files on every restart — their persistent-disk
+plans start around $7/month). The one genuinely free-forever option is
+**running your own tiny server**, which costs nothing if you use a
+permanently-free VM:
 
-I can't create a hosting account or pay for one on your behalf, but I did
-commit a ready-to-use [Render](https://render.com) blueprint
-(`render.yaml`) so the deploy itself is close to one click:
+1. **Create the VM**: sign up for
+   [Oracle Cloud's Always Free tier](https://www.oracle.com/cloud/free/)
+   (a credit card is required for identity verification but you are not
+   charged as long as you stay on an Always Free shape — e.g. the
+   `VM.Standard.E2.1.Micro` or an Ampere A1 instance). Pick Ubuntu 22.04 or
+   24.04. Note the VM's public IP.
+   In the Oracle Cloud console, also open inbound TCP ports 80 and 443 for
+   that instance (Networking → Virtual Cloud Networks → your VCN →
+   Security Lists → Add Ingress Rules) — this is separate from the OS
+   firewall and easy to miss.
+2. **Get a free stable URL**: sign up at [duckdns.org](https://www.duckdns.org)
+   (free) and point a subdomain (e.g. `genassist-yourco.duckdns.org`) at
+   the VM's IP. Oracle Always Free VMs keep the same IP, so this is a
+   one-time step.
+3. **Run the setup script**: SSH into the VM and run the script already
+   committed at `deploy/setup-vps.sh`, which installs Node.js, installs
+   [Caddy](https://caddyserver.com) (free, fully automatic HTTPS via Let's
+   Encrypt — no certificate cost or renewal hassle), pulls this repo, and
+   sets it up as a systemd service that restarts itself and survives
+   reboots:
+   ```bash
+   curl -fsSL https://raw.githubusercontent.com/amiileroux/genAssist/claude/amazing-shannon-1d3yul/deploy/setup-vps.sh -o setup-vps.sh
+   sudo DOMAIN=genassist-yourco.duckdns.org bash setup-vps.sh
+   ```
+4. **Add your email credentials**: edit `/opt/genassist/.env` on the VM
+   (the script creates a template) with the SMTP values from "Email
+   sending" above, then `sudo systemctl restart genassist`.
+5. Visit `https://genassist-yourco.duckdns.org` — that's the one link for
+   all 60+ agents. Caddy fetches the HTTPS certificate automatically on
+   first request.
 
-1. Create a free Render account at render.com and connect it to your GitHub.
-2. In the Render dashboard: **New +** → **Blueprint** → pick the
-   `amiileroux/genAssist` repo → branch `claude/amazing-shannon-1d3yul` (or
-   `main`, once this is merged there).
-3. Render reads `render.yaml` and sets up a web service with a 1GB
-   persistent disk mounted at `data/` automatically. It'll prompt you to
-   fill in a few environment variables it left blank on purpose (secrets
-   don't belong in the repo) — `SMTP_HOST`, `SMTP_USER`, `SMTP_PASS`,
-   `EMAIL_FROM` — see "Email sending" above for where those come from.
-4. Click **Apply** / **Deploy**. Render builds it and gives you a public
-   URL like `https://genassist.onrender.com` — that's the one link to hand
-   to all 60+ agents.
+Total recurring cost: **$0/month**, indefinitely — not a trial. The
+trade-off versus a managed platform is that you (or I, walking you through
+it) are the one keeping the VM patched, rather than a provider doing it
+for you.
 
-Cost: Render's `starter` plan (needed for the persistent disk) runs about
-**$7/month** plus roughly $0.25/GB/month for the disk — there's no
-realistic way to get persistent storage for free on a managed platform.
-If you'd rather avoid any recurring cost, the cheapest path is a small VPS
-(Hetzner/DigitalOcean, ~$4–6/month) running `npm start` under `pm2` behind
-Caddy for HTTPS — more setup, same idea. Tell me which way you want to go
-and I'll either walk the Render blueprint through with you step by step, or
-write out the VPS setup commands.
+### If you'd rather pay a little for zero server upkeep
+
+This repo also has a [Render](https://render.com) blueprint
+(`render.yaml`) for a managed, zero-maintenance alternative: Render
+dashboard → **New +** → **Blueprint** → pick this repo → it provisions a
+web service with a persistent disk and prompts for the SMTP env vars →
+**Deploy**. Costs about $7/month for the persistent-disk plan. Not needed
+if you're going the free VPS route above — just there if the VPS upkeep
+ever feels like more than you want to deal with.
 
 ## Project layout
 
@@ -133,6 +157,8 @@ public/
   records.html, js/records.js       — backend/records view with copy buttons
   css/style.css
 data/        — local database + uploaded document images (gitignored)
+deploy/setup-vps.sh   — one-time setup script for the free VPS hosting path
+render.yaml            — blueprint for the paid, zero-maintenance Render path
 ```
 
 ## Backing it up / moving it
