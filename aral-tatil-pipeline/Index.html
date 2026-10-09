@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <meta charset="utf-8">
+  <?!= include_('Stylesheet'); ?>
+</head>
+<body class="bg-slate-50 text-slate-800 antialiased">
+
+  <? if (view === 'admin') { ?>
+    <?!= include_('AdminDashboard'); ?>
+  <? } else { ?>
+    <?!= include_('AgentPortal'); ?>
+  <? } ?>
+
+  <script>
+    window.ARAL_CONTEXT = {
+      view: <?!= JSON.stringify(view) ?>,
+      viewerEmail: <?!= JSON.stringify(viewerEmail) ?>,
+      isAdmin: <?!= isAdmin ? 'true' : 'false' ?>
+    };
+  </script>
+
+  <? if (view === 'admin') { ?>
+    <?!= include_('AdminScript'); ?>
+  <? } else { ?>
+    <?!= include_('AgentScript'); ?>
+  <? } ?>
+
+</body>
+</html>

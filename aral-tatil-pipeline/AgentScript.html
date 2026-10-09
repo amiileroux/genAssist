@@ -1,0 +1,143 @@
+<script>
+(function () {
+  var state = { email: '', records: [], pendingUpload: null };
+
+  function $(id) { return document.getElementById(id); }
+
+  function escapeHtml(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+
+  function statusColor(status) {
+    switch (status) {
+      case 'Ready for Underwriting': return 'bg-emerald-100 text-emerald-800';
+      case 'Needs Supplemental Info': return 'bg-amber-100 text-amber-800';
+      case 'Policy Issued': return 'bg-sky-100 text-sky-800';
+      default: return 'bg-rose-100 text-rose-800';
+    }
+  }
+
+  var DOC_LABELS = {
+    permit: "Driver's Permit",
+    vehicleCert: 'Vehicle Certified Copy',
+    valuation: 'Vehicle Valuation',
+    utilityBill: 'Utility Bill'
+  };
+
+  function missingToDocKeys(missing) {
+    var keys = [];
+    (missing || []).forEach(function (m) {
+      var lower = m.toLowerCase();
+      if (lower.indexOf('permit') !== -1) keys.push('permit');
+      else if (lower.indexOf('certified') !== -1) keys.push('vehicleCert');
+      else if (lower.indexOf('valuation') !== -1) keys.push('valuation');
+      else if (lower.indexOf('utility') !== -1 || lower.indexOf('address') !== -1) keys.push('utilityBill');
+    });
+    return keys;
+  }
+
+  function renderList() {
+    var host = $('agent-list');
+    host.innerHTML = '';
+    $('agent-empty').classList.toggle('hidden', state.records.length > 0);
+
+    state.records.forEach(function (r) {
+      var docKeys = missingToDocKeys(r.missing);
+      var card = document.createElement('div');
+      card.className = 'bg-white border border-slate-200 rounded-lg p-4 shadow-sm';
+      card.innerHTML =
+        '<div class="flex items-start justify-between gap-2">' +
+          '<div><div class="font-semibold text-slate-900">' + escapeHtml(r.clientName) + '</div>' +
+          '<div class="text-xs text-slate-400">' + escapeHtml(r.aralCode) + ' &middot; ' + escapeHtml(r.policyType) + '</div></div>' +
+          '<span class="text-xs font-medium px-2 py-1 rounded-full ' + statusColor(r.status) + '">' + r.score + '%</span>' +
+        '</div>' +
+        '<div class="mt-2 text-xs font-medium ' + statusColor(r.status) + ' inline-block px-2 py-0.5 rounded-full">' + escapeHtml(r.status) + '</div>';
+
+      if (docKeys.length) {
+        var list = document.createElement('div');
+        list.className = 'mt-3 space-y-2';
+        docKeys.forEach(function (docKey) {
+          var row = document.createElement('div');
+          row.className = 'flex items-center justify-between text-sm bg-rose-50 border border-rose-100 rounded-md px-2 py-1.5';
+          row.innerHTML = '<span class="text-rose-700">' + DOC_LABELS[docKey] + ' missing</span>';
+          var btn = document.createElement('button');
+          btn.textContent = 'Upload';
+          btn.className = 'text-xs font-medium px-2 py-1 rounded-md bg-rose-600 text-white';
+          btn.addEventListener('click', function () { startUpload(r.aralCode, docKey); });
+          row.appendChild(btn);
+          list.appendChild(row);
+        });
+        card.appendChild(list);
+      }
+
+      if (r.folderUrl) {
+        var link = document.createElement('a');
+        link.href = r.folderUrl;
+        link.target = '_blank';
+        link.className = 'block mt-3 text-xs text-sky-600 underline';
+        link.textContent = 'View Drive folder';
+        card.appendChild(link);
+      }
+
+      host.appendChild(card);
+    });
+  }
+
+  function handleError(err) {
+    alert('Error: ' + (err && err.message ? err.message : err));
+  }
+
+  function loadRecords() {
+    google.script.run.withSuccessHandler(function (records) {
+      state.records = records;
+      renderList();
+    }).withFailureHandler(handleError).agent_getMySubmissions(state.email);
+  }
+
+  function startUpload(aralCode, docKey) {
+    state.pendingUpload = { aralCode: aralCode, docKey: docKey };
+    $('agent-file-input').click();
+  }
+
+  $('agent-file-input').addEventListener('change', function (evt) {
+    var file = evt.target.files[0];
+    var pending = state.pendingUpload;
+    if (!file || !pending) return;
+    var reader = new FileReader();
+    reader.onload = function () {
+      var base64 = reader.result.split(',')[1];
+      google.script.run.withSuccessHandler(function () {
+        loadRecords();
+      }).withFailureHandler(function (err) {
+        alert('Upload failed: ' + (err && err.message ? err.message : err));
+      }).agent_reuploadDocument(pending.aralCode, pending.docKey, base64, file.name, file.type || 'application/octet-stream');
+    };
+    reader.readAsDataURL(file);
+    evt.target.value = '';
+  });
+
+  $('agent-email-save').addEventListener('click', function () {
+    var val = $('agent-email-input').value.trim();
+    if (!val) return;
+    state.email = val;
+    try { localStorage.setItem('aral_agent_email', val); } catch (e) {}
+    $('agent-email-card').classList.add('hidden');
+    loadRecords();
+  });
+
+  var detected = window.ARAL_CONTEXT && window.ARAL_CONTEXT.viewerEmail;
+  var saved = '';
+  try { saved = localStorage.getItem('aral_agent_email') || ''; } catch (e) {}
+  state.email = detected || saved;
+
+  if (!state.email) {
+    $('agent-email-card').classList.remove('hidden');
+  } else {
+    loadRecords();
+  }
+
+  setInterval(function () { if (state.email) loadRecords(); }, 60000);
+})();
+</script>

@@ -1,0 +1,155 @@
+<script>
+(function () {
+  var state = { records: [], cutoff: null, pendingAction: null };
+
+  function $(id) { return document.getElementById(id); }
+
+  function escapeHtml(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+
+  function statusColor(status) {
+    switch (status) {
+      case 'Ready for Underwriting': return 'bg-emerald-100 text-emerald-800 border-emerald-200';
+      case 'Needs Supplemental Info': return 'bg-amber-100 text-amber-800 border-amber-200';
+      case 'Policy Issued': return 'bg-sky-100 text-sky-800 border-sky-200';
+      default: return 'bg-rose-100 text-rose-800 border-rose-200';
+    }
+  }
+
+  function fmtDate(iso) {
+    try { return new Date(iso).toLocaleString(); } catch (e) { return iso; }
+  }
+
+  function renderSummary(records) {
+    var counts = {};
+    records.forEach(function (r) { counts[r.status] = (counts[r.status] || 0) + 1; });
+    var host = $('status-summary');
+    host.innerHTML = '';
+    Object.keys(counts).forEach(function (status) {
+      var card = document.createElement('div');
+      card.className = 'rounded-lg border p-3 ' + statusColor(status);
+      card.innerHTML = '<div class="text-2xl font-bold">' + counts[status] + '</div><div class="text-xs font-medium">' + escapeHtml(status) + '</div>';
+      host.appendChild(card);
+    });
+  }
+
+  function actionButton(label, classes, onClick) {
+    var btn = document.createElement('button');
+    btn.textContent = label;
+    btn.className = 'text-xs font-medium px-2 py-1 rounded-md border ' + classes;
+    btn.addEventListener('click', onClick);
+    return btn;
+  }
+
+  function renderRows(records) {
+    var body = $('dashboard-body');
+    body.innerHTML = '';
+    $('admin-empty').classList.toggle('hidden', records.length > 0);
+
+    records.forEach(function (r) {
+      var tr = document.createElement('tr');
+      tr.innerHTML =
+        '<td class="px-3 py-2"><div class="font-medium text-slate-900">' + escapeHtml(r.clientName) + '</div>' +
+        '<div class="text-xs text-slate-400">' + escapeHtml(r.aralCode) + '</div></td>' +
+        '<td class="px-3 py-2">' + escapeHtml(r.agentName) + '</td>' +
+        '<td class="px-3 py-2">' + escapeHtml(r.policyType) + '</td>' +
+        '<td class="px-3 py-2 whitespace-nowrap text-slate-500">' + fmtDate(r.submittedAt) + '</td>' +
+        '<td class="px-3 py-2"><span class="font-semibold">' + r.score + '%</span></td>' +
+        '<td class="px-3 py-2"><span class="inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium ' + statusColor(r.status) + '">' + escapeHtml(r.status) + '</span>' +
+        (r.missing && r.missing.length ? '<div class="text-xs text-rose-500 mt-1">' + escapeHtml(r.missing.join(', ')) + '</div>' : '') + '</td>' +
+        '<td class="px-3 py-2">' + (r.folderUrl ? '<a href="' + r.folderUrl + '" target="_blank" class="text-sky-600 underline text-xs">Open folder</a>' : '') + '</td>';
+
+      var actionsTd = document.createElement('td');
+      actionsTd.className = 'px-3 py-2 space-x-1 whitespace-nowrap';
+      actionsTd.appendChild(actionButton('Flag Incomplete', 'border-rose-300 text-rose-700 hover:bg-rose-50', function () { openNoteModal(r, 'flag'); }));
+      actionsTd.appendChild(actionButton('Request Info', 'border-amber-300 text-amber-700 hover:bg-amber-50', function () { openNoteModal(r, 'supplemental'); }));
+      actionsTd.appendChild(actionButton('Approve', 'border-emerald-300 text-emerald-700 hover:bg-emerald-50', function () { approve(r); }));
+      actionsTd.appendChild(actionButton('Mark Issued', 'border-sky-300 text-sky-700 hover:bg-sky-50', function () { openPolicyModal(r); }));
+      tr.appendChild(actionsTd);
+      body.appendChild(tr);
+    });
+  }
+
+  function handleError(err) {
+    alert('Error: ' + (err && err.message ? err.message : err));
+  }
+
+  function onDashboardUpdated(records) {
+    state.records = records;
+    renderSummary(records);
+    renderRows(records);
+  }
+
+  function loadDashboard() {
+    google.script.run.withSuccessHandler(onDashboardUpdated).withFailureHandler(handleError).admin_getDashboardData();
+  }
+
+  function openNoteModal(record, kind) {
+    state.pendingAction = { record: record, kind: kind };
+    $('note-modal-title').textContent = kind === 'flag' ? 'Flag as Incomplete' : 'Request Supplemental Info';
+    $('note-modal-sub').textContent = record.clientName + ' (' + record.aralCode + ')';
+    $('note-modal-text').value = '';
+    $('note-modal').classList.remove('hidden');
+  }
+
+  function approve(record) {
+    if (!confirm('Approve ' + record.clientName + ' and route to Underwriting?')) return;
+    google.script.run.withSuccessHandler(onDashboardUpdated).withFailureHandler(handleError).admin_approveForUnderwriting(record.aralCode);
+  }
+
+  function openPolicyModal(record) {
+    state.pendingAction = { record: record };
+    $('policy-modal-input').value = '';
+    $('policy-modal').classList.remove('hidden');
+  }
+
+  $('refresh-btn').addEventListener('click', loadDashboard);
+
+  $('note-modal-cancel').addEventListener('click', function () { $('note-modal').classList.add('hidden'); });
+  $('note-modal-confirm').addEventListener('click', function () {
+    var action = state.pendingAction;
+    var note = $('note-modal-text').value.trim();
+    $('note-modal').classList.add('hidden');
+    if (!action) return;
+    var fn = action.kind === 'flag' ? 'admin_flagIncomplete' : 'admin_requestSupplementalInfo';
+    google.script.run.withSuccessHandler(onDashboardUpdated).withFailureHandler(handleError)[fn](action.record.aralCode, note);
+  });
+
+  $('policy-modal-cancel').addEventListener('click', function () { $('policy-modal').classList.add('hidden'); });
+  $('policy-modal-confirm').addEventListener('click', function () {
+    var action = state.pendingAction;
+    var num = $('policy-modal-input').value.trim();
+    if (!num) { alert('Enter a TATIL policy number.'); return; }
+    $('policy-modal').classList.add('hidden');
+    google.script.run.withSuccessHandler(onDashboardUpdated).withFailureHandler(handleError).admin_markPolicyIssued(action.record.aralCode, num);
+  });
+
+  function tickCutoff() {
+    if (!state.cutoff) return;
+    var remaining = state.cutoff.target - Date.now();
+    var badge = $('cutoff-badge');
+    if (remaining <= 0) {
+      badge.textContent = 'Same-day TATIL cutoff (11:00 AM) has passed';
+      badge.className = 'rounded-full px-4 py-2 text-sm font-semibold bg-rose-100 text-rose-800 border border-rose-200';
+      return;
+    }
+    var h = Math.floor(remaining / 3600000);
+    var m = Math.floor((remaining % 3600000) / 60000);
+    var s = Math.floor((remaining % 60000) / 1000);
+    var pad = function (n) { return (n < 10 ? '0' : '') + n; };
+    badge.textContent = 'Time left for same-day TATIL 11:00 AM cutoff: ' + pad(h) + ':' + pad(m) + ':' + pad(s);
+  }
+
+  google.script.run.withSuccessHandler(function (info) {
+    state.cutoff = { target: Date.now() + info.msRemaining };
+    tickCutoff();
+    setInterval(tickCutoff, 1000);
+  }).withFailureHandler(handleError).admin_getCutoffStatus();
+
+  loadDashboard();
+  setInterval(loadDashboard, 60000);
+})();
+</script>
