@@ -83,6 +83,14 @@ AgentScript.html      Agent UI behaviour, including document re-upload
 
 ## Setup
 
+All of the steps below should be done while signed in to the
+**`aral@enbfocus.com`** Google account (use the account switcher if
+your browser is signed in as someone else first) — that's the account
+that should own the Form, the Sheet, the Apps Script project, the Drive
+folder structure, and the web app deployment (deployed with "Execute
+as: Me", so it always runs as `aral@enbfocus.com` regardless of who's
+viewing).
+
 1. **Create the Google Form.** Add these exact questions (titles must
    match `CONFIG.FORM_FIELDS` in `Config.gs` — edit that file instead if
    you'd rather use your own wording):
@@ -114,7 +122,7 @@ AgentScript.html      Agent UI behaviour, including document re-upload
 
    | Property | Value |
    |---|---|
-   | `ADMIN_EMAILS` | Comma-separated list of admin Google account emails, e.g. `amii@aral.com,backoffice@aral.com` |
+   | `ADMIN_EMAILS` | Comma-separated list of admin Google account emails, e.g. `aral@enbfocus.com,backoffice@aral.com` |
    | `UNDERWRITING_EMAIL` | Where "ready for underwriting" alerts go, e.g. `underwriting@tatil.co.tt` |
 
 5. **Run `setupPipeline` once** from the script editor's function
