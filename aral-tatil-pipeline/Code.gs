@@ -1,6 +1,8 @@
 /**
- * Entry points: the web app (doGet), the Form-submit trigger, and the
- * one-time setup routine. See README.md for the full setup walkthrough.
+ * Entry points: the web app (doGet), the Form-submit trigger (shared by
+ * both the Motor and Property Forms, routed by which raw-response sheet
+ * received the new row), and the one-time setup routine. See README.md
+ * for the full setup walkthrough.
  */
 
 function doGet(e) {
@@ -35,12 +37,15 @@ function include_(filename) {
 
 /**
  * One-time setup: run this manually from the Apps Script editor (select
- * `setupPipeline` in the function dropdown, then Run) after linking the
- * Google Form to this Sheet. Safe to re-run at any time.
+ * `setupPipeline` in the function dropdown, then Run) after linking both
+ * the Motor and Property Google Forms to this Sheet. Safe to re-run at
+ * any time.
  */
 function setupPipeline() {
-  getOrCreateRootStructure_();
-  getTrackerSheet_();
+  Object.keys(CONFIG.LINES).forEach(function (lineKey) {
+    getOrCreateLineStructure_(lineKey);
+    getTrackerSheet_(lineKey);
+  });
   installFormSubmitTrigger_();
   SpreadsheetApp.getActiveSpreadsheet().toast('ARAL pipeline setup complete.', 'Setup', 5);
 }
@@ -63,13 +68,30 @@ function onOpen() {
 }
 
 /**
- * Installable trigger fired on every Form submission to this Sheet.
- * namedValues keys must exactly match the titles in CONFIG.FORM_FIELDS.
+ * Installable trigger fired on every submission to EITHER linked Form
+ * (a spreadsheet-level onFormSubmit trigger fires regardless of which
+ * linked Form was submitted). Routes by which raw-response sheet the new
+ * row landed in - CONFIG.LINES.<key>.RESPONSE_SHEET_NAME must match that
+ * tab's actual name (confirm/rename after linking each Form; see README).
  */
 function onFormSubmitTrigger(e) {
+  var sheetName = e && e.range ? e.range.getSheet().getName() : '';
+
+  if (sheetName === CONFIG.LINES.MOTOR.RESPONSE_SHEET_NAME) {
+    onMotorFormSubmit_(e);
+  } else if (sheetName === CONFIG.LINES.PROPERTY.RESPONSE_SHEET_NAME) {
+    onPropertyFormSubmit_(e);
+  } else {
+    throw new Error('onFormSubmitTrigger: submission landed on an unrecognized sheet "' + sheetName +
+      '" - update CONFIG.LINES.MOTOR.RESPONSE_SHEET_NAME / CONFIG.LINES.PROPERTY.RESPONSE_SHEET_NAME in Config.gs to match.');
+  }
+}
+
+function onMotorFormSubmit_(e) {
+  var fields = CONFIG.LINES.MOTOR.FORM_FIELDS;
   var nv = (e && e.namedValues) || {};
   var get = function (key) {
-    var val = nv[CONFIG.FORM_FIELDS[key]];
+    var val = nv[fields[key]];
     return val ? val[0] : '';
   };
 
@@ -85,9 +107,9 @@ function onFormSubmitTrigger(e) {
 
   var newDriver = isNewDriver_(hasNcdLetterAnswer);
 
-  var aralCode = nextAralCode_();
+  var aralCode = nextAralCode_('MOTOR');
   // Client Name isn't on the form - it's set by an admin off the DP Licence upload (see admin_setClientName).
-  var folder = createClientFolder_(aralCode, '', coverageType);
+  var folder = createClientFolder_('MOTOR', aralCode, '', coverageType);
 
   var hasDpLicence = attachUploadToFolder_(get('DP_LICENCE_FILE'), folder, 'DP_LICENCE');
   attachUploadToFolder_(get('ID_FILE'), folder, 'ID');
@@ -98,7 +120,7 @@ function onFormSubmitTrigger(e) {
   var hasNcdLetterFile = attachUploadToFolder_(get('NCD_LETTER_FILE'), folder, 'NCD_LETTER');
   var hasClaimHistoryLetterFile = attachUploadToFolder_(get('CLAIM_HISTORY_LETTER_FILE'), folder, 'CLAIM_HISTORY_LETTER');
 
-  var evaluation = evaluateSubmission_({
+  var evaluation = evaluateMotorSubmission_({
     hasDpLicence: hasDpLicence,
     hasCertifiedCopy: hasCertifiedCopy,
     hasVehicleSpecsText: !!vehicleSpecsText,
@@ -114,9 +136,10 @@ function onFormSubmitTrigger(e) {
     newlyPurchased: newlyPurchased
   });
 
-  moveFolderToStatus_(folder, evaluation.statusKey);
+  moveFolderToStatus_('MOTOR', folder, evaluation.statusKey);
 
   var record = {
+    line: 'MOTOR',
     aralCode: aralCode,
     clientName: '',
     agentName: agentName,
@@ -134,7 +157,7 @@ function onFormSubmitTrigger(e) {
     newDriver: newDriver
   };
 
-  appendTrackerRow_(record);
+  appendMotorTrackerRow_(record);
 
   if (evaluation.statusKey === 'INCOMPLETE') {
     notifyAgentMissingFields_(record);
@@ -143,46 +166,113 @@ function onFormSubmitTrigger(e) {
   }
 }
 
-/** Re-runs the vetting engine over every tracker row. Handy after editing CONFIG or fixing a misconfigured Form. */
+function onPropertyFormSubmit_(e) {
+  var fields = CONFIG.LINES.PROPERTY.FORM_FIELDS;
+  var nv = (e && e.namedValues) || {};
+  var get = function (key) {
+    var val = nv[fields[key]];
+    return val ? val[0] : '';
+  };
+
+  var agentName = get('PRODUCER_NAME');
+  var agentEmail = get('AGENT_EMAIL');
+  var occupancyType = get('OCCUPANCY_TYPE');
+  var residentialContents = get('RESIDENTIAL_CONTENTS');
+
+  var aralCode = nextAralCode_('PROPERTY');
+  // Client Name isn't on the form - it's set by an admin off the DP Licence upload (see admin_setClientName).
+  var folder = createClientFolder_('PROPERTY', aralCode, '', occupancyType);
+
+  var hasDpLicence = attachUploadToFolder_(get('DP_LICENCE_FILE'), folder, 'DP_LICENCE');
+  attachUploadToFolder_(get('ID_FILE'), folder, 'ID');
+  var hasProofOfAddress = attachUploadToFolder_(get('PROOF_OF_ADDRESS_FILE'), folder, 'PROOF_OF_ADDRESS');
+  var hasDirectorsIdDp = attachUploadToFolder_(get('DIRECTORS_ID_DP_FILE'), folder, 'DIRECTORS_ID_DP');
+
+  var evaluation = evaluatePropertySubmission_({
+    hasDpLicence: hasDpLicence,
+    hasProofOfAddress: hasProofOfAddress,
+    hasDirectorsIdDp: hasDirectorsIdDp,
+    occupancyType: occupancyType,
+    hasResidentialContents: !!residentialContents
+  });
+
+  moveFolderToStatus_('PROPERTY', folder, evaluation.statusKey);
+
+  var record = {
+    line: 'PROPERTY',
+    aralCode: aralCode,
+    clientName: '',
+    agentName: agentName,
+    agentEmail: agentEmail,
+    occupancyType: occupancyType,
+    score: evaluation.score,
+    status: CONFIG.STATUS[evaluation.statusKey],
+    missing: evaluation.missing,
+    folderUrl: folder.getUrl(),
+    folderId: folder.getId(),
+    residentialContents: residentialContents
+  };
+
+  appendPropertyTrackerRow_(record);
+
+  if (evaluation.statusKey === 'INCOMPLETE') {
+    notifyAgentMissingFields_(record);
+  } else if (evaluation.statusKey === 'READY') {
+    notifyUnderwritingReady_(record);
+  }
+}
+
+/** Re-runs the vetting engine over every tracker row, both lines. Handy after editing CONFIG or fixing a misconfigured Form. */
 function reprocessAllRows() {
-  getAllRecords_().forEach(function (record) { reevaluateRecord_(record); });
+  Object.keys(CONFIG.LINES).forEach(function (lineKey) {
+    getAllRecords_(lineKey).forEach(function (record) { reevaluateRecord_(record); });
+  });
 }
 
 /**
  * Re-checks a tracker row's Drive folder contents and updates
  * score/status/folder placement accordingly. Used both by
- * reprocessAllRows() and after an agent re-uploads a document.
+ * reprocessAllRows() and after an agent re-uploads a document. Dispatches
+ * on record.line, since Motor and Property have different checklists.
  */
 function reevaluateRecord_(record) {
   if (!record.folderId) return record;
   var folder = safeGetFolder_(record.folderId);
   if (!folder) return record;
 
-  var evaluation = evaluateSubmission_({
-    hasDpLicence: folderHasDoc_(folder, 'DP_LICENCE'),
-    hasCertifiedCopy: folderHasDoc_(folder, 'CERTIFIED_COPY'),
-    hasVehicleSpecsText: !!record.vehicleSpecs,
-    hasProofOfAddress: folderHasDoc_(folder, 'PROOF_OF_ADDRESS'),
-    hasValueOfVehicle: true, // not re-collected on re-upload; only documents can be re-uploaded
-    ncdLevel: record.ncdLevel,
-    newDriver: record.newDriver,
-    hasNcdLetterFile: folderHasDoc_(folder, 'NCD_LETTER'),
-    claimHistoryAnswer: record.claimHistoryAnswer,
-    hasClaimHistoryLetterFile: folderHasDoc_(folder, 'CLAIM_HISTORY_LETTER'),
-    coverageType: record.coverageType,
-    hasCertOfRegistration: folderHasDoc_(folder, 'CERT_OF_REGISTRATION'),
-    newlyPurchased: record.newlyPurchased
-  });
+  var evaluation = record.line === 'MOTOR'
+    ? evaluateMotorSubmission_({
+      hasDpLicence: folderHasDoc_(folder, 'DP_LICENCE'),
+      hasCertifiedCopy: folderHasDoc_(folder, 'CERTIFIED_COPY'),
+      hasVehicleSpecsText: !!record.vehicleSpecs,
+      hasProofOfAddress: folderHasDoc_(folder, 'PROOF_OF_ADDRESS'),
+      hasValueOfVehicle: true, // not re-collected on re-upload; only documents can be re-uploaded
+      ncdLevel: record.ncdLevel,
+      newDriver: record.newDriver,
+      hasNcdLetterFile: folderHasDoc_(folder, 'NCD_LETTER'),
+      claimHistoryAnswer: record.claimHistoryAnswer,
+      hasClaimHistoryLetterFile: folderHasDoc_(folder, 'CLAIM_HISTORY_LETTER'),
+      coverageType: record.coverageType,
+      hasCertOfRegistration: folderHasDoc_(folder, 'CERT_OF_REGISTRATION'),
+      newlyPurchased: record.newlyPurchased
+    })
+    : evaluatePropertySubmission_({
+      hasDpLicence: folderHasDoc_(folder, 'DP_LICENCE'),
+      hasProofOfAddress: folderHasDoc_(folder, 'PROOF_OF_ADDRESS'),
+      hasDirectorsIdDp: folderHasDoc_(folder, 'DIRECTORS_ID_DP'),
+      occupancyType: record.occupancyType,
+      hasResidentialContents: !!record.residentialContents
+    });
 
-  moveFolderToStatus_(folder, evaluation.statusKey);
+  moveFolderToStatus_(record.line, folder, evaluation.statusKey);
 
-  updateRowFields_(record.rowNum, {
+  updateRowFields_(record.line, record.rowNum, {
     SCORE: evaluation.score,
     STATUS: CONFIG.STATUS[evaluation.statusKey],
     MISSING_FIELDS: evaluation.missing.join('; ')
   });
 
-  var updated = readRowAsRecord_(record.rowNum);
+  var updated = readRowAsRecord_(record.line, record.rowNum);
   if (evaluation.statusKey === 'INCOMPLETE') {
     notifyAgentMissingFields_(updated);
   } else if (evaluation.statusKey === 'READY') {

@@ -11,19 +11,34 @@ repo — it's built entirely on Google Apps Script/Sheets/Drive/Gmail
 rather than Node, because the ask here is specifically a Google
 Workspace web app with no server to host.
 
+## Two lines of business, one app
+
+This single Apps Script project runs **two independent pipelines**:
+
+- **Motor** — the "ARAL Motor Insurance Lead Intake" Form.
+- **Property** — the "ARAL House & Commercial Property Insurance Lead
+  Intake" Form.
+
+Both Forms feed this one bound Google Sheet (as separate linked Forms,
+each writing to its own raw-response tab), and both show up in the same
+Admin Dashboard and Agent Portal with a **Motor / Property tab** to
+switch between them. Each line has its own Drive folder tree, its own
+tracker sheet, its own ARAL code numbering (`ARAL-MOT-######` /
+`ARAL-PROP-######`), and its own vetting checklist — see `Config.gs`'s
+`CONFIG.LINES` for everything that's specific to one line.
+
 ## What it does
 
-1. An agent submits the live "ARAL Motor Insurance Lead Intake" Google
-   Form (producer/branch info, client & vehicle details, and the
-   compliance document uploads).
-2. An installable trigger fires, which:
-   - Creates a Drive folder `[ARAL-CODE]_Pending-Name_[Coverage_Type]`
-     and moves the uploaded files into it. (Client Name isn't on the
+1. An agent submits either Google Form.
+2. A shared installable trigger fires (routed to the right line by
+   which raw-response sheet the submission landed on), which:
+   - Creates a Drive folder `[ARAL-CODE]_Pending-Name_[Category]` and
+     moves the uploaded files into it. (Client Name isn't on either
      form — see "Client Name" below.)
-   - Scores the submission 0–100% against the checklist in "Vetting
-     rules" below.
+   - Scores the submission 0–100% against that line's checklist (see
+     "Vetting rules" below).
    - Moves the folder into the matching pipeline stage.
-   - Logs a row to the `Pipeline_Tracker` sheet (the dashboard's data
+   - Logs a row to that line's tracker sheet (the dashboard's data
      source).
    - Emails the agent the exact missing items if anything's incomplete,
      or emails Underwriting if it's 100% ready.
@@ -32,11 +47,12 @@ Workspace web app with no server to host.
    issued — each action moves the Drive folder and re-notifies the
    agent.
 4. Agents work the **Agent Portal** (mobile-first) to see their own
-   submissions and re-upload exactly the documents that are missing.
+   submissions across both lines and re-upload exactly the documents
+   that are missing.
 
 ### Client Name
 
-The form doesn't collect a client name as its own field — the client's
+Neither form collects a client name as its own field — the client's
 legal name is read off the **DP Licence** upload, since that has to be
 exact. So a fresh submission shows up with no name until an admin opens
 it, looks at the uploaded DP Licence, and clicks **Set name** on the
@@ -47,16 +63,24 @@ updates the tracker row and renames the Drive folder to match.
 
 ```
 /ARAL_Insurance_Pipeline/
-  01_Incomplete_Flagged/       Missing KYC, bad photos, or misinformation
-  02_Needs_Supplemental_Info/  Needs additional underwriting detail (e.g. valuation)
-  03_Ready_For_Underwriting/   100% complete & vetted
-  04_Completed_Policies/       Issued policies with TATIL policy numbers
+  Motor/
+    01_Incomplete_Flagged/       Missing KYC, bad photos, or misinformation
+    02_Needs_Supplemental_Info/  Needs additional underwriting detail
+    03_Ready_For_Underwriting/   100% complete & vetted
+    04_Completed_Policies/       Issued policies with TATIL policy numbers
+  Property/
+    01_Incomplete_Flagged/
+    02_Needs_Supplemental_Info/
+    03_Ready_For_Underwriting/
+    04_Completed_Policies/
 ```
 
 Folders are created on first run and their IDs are cached in Script
 Properties, so the structure is created once and then just reused.
 
-## Vetting rules (Motor Insurance)
+## Vetting rules
+
+### Motor
 
 The score is `(required items satisfied) / (required items for this
 submission) × 100` — the required-item count varies per submission, it
@@ -86,30 +110,61 @@ correctly if the record is re-scored later (e.g. after an agent
 re-uploads a document) — the original form answer isn't re-askable at
 that point.
 
-Routing:
+### Property (House / Commercial)
+
+**Always required:**
+
+| Item | Form source |
+|---|---|
+| DP Licence | `Upload DP Licence` (file) |
+| Proof of Address | `Upload Proof Of Address` (file) — "for the location being insured" |
+
+**Conditionally required:**
+
+| Item | Required when | Form source |
+|---|---|---|
+| Directors ID & DP | `Type of Occupancy` is `Commercial` or `Small Business` | `Upload Directors ID & DP` (file) — the form's own label: "For Commercial and Small Businesses ONLY" |
+| Contents for Residential | `Type of Occupancy` is `Residential` *(inferred — see the open question below)* | `Contents for Residential` (text) |
+
+> **Open question — not yet implemented.** Section 3 of the Property
+> Form is titled "Coverage Options & Insured Values" and its own
+> subtitle says it "defines scope of coverage and **required sums
+> insured** for proper risk assessment," but no Sum Insured / Building
+> Value field was visible when this checklist was built (the form
+> appeared to go straight to Submit after "Contents for Residential,"
+> including for a Commercial selection). **Confirm with whoever owns
+> the Form** whether there's a Sum Insured question reachable via
+> branching that wasn't seen, and if so add it to
+> `CONFIG.LINES.PROPERTY.FORM_FIELDS` in `Config.gs` and a matching
+> check in `PropertyVettingEngine.gs` — right now that value isn't
+> scored at all.
+
+Routing (same for both lines):
 
 - **100%** → `Ready for Underwriting`, folder moves to `03_Ready_For_Underwriting`, Underwriting is emailed.
 - **Anything required is missing** → `Incomplete / Flagged`, folder moves to `01_Incomplete_Flagged`, and the agent is emailed the exact missing items.
-- An admin can also manually flag a submission (e.g. for suspected misinformation, an expired permit, or a stale utility bill — none of which the form gives a date to check automatically) from the dashboard regardless of score — that always re-routes to `01` and emails the agent with the admin's note. **Request Supplemental Info** is how `02_Needs_Supplemental_Info` gets used — it's admin-only, not something the automated score routes into on its own (e.g. if TATIL comes back asking for something extra that isn't on the standard checklist).
+- An admin can also manually flag a submission (e.g. for suspected misinformation, an expired permit, or a stale utility bill — none of which either form gives a date to check automatically) from the dashboard regardless of score — that always re-routes to `01` and emails the agent with the admin's note. **Request Supplemental Info** is how `02_Needs_Supplemental_Info` gets used — it's admin-only, not something the automated score routes into on its own (e.g. if TATIL comes back asking for something extra that isn't on the standard checklist, or — for Property — the open Sum Insured question above).
 
 ## Project layout
 
 ```
-appsscript.json      Manifest (time zone, web app access, OAuth scopes)
-Code.gs               doGet, onFormSubmit trigger, setup, reprocessing
-Config.gs             All the editable constants (folder names, form field titles, cutoff hour, ...)
-DriveManager.gs       Folder creation/lookup, moving folders between stages, moving uploaded files
-VettingEngine.gs      The scoring/routing logic described above
-SheetManager.gs       Reads/writes the Pipeline_Tracker sheet
-EmailService.gs       Agent/Underwriting notification emails
-AdminController.gs    Server functions the Admin Dashboard calls (google.script.run)
-AgentController.gs    Server functions the Agent Portal calls
-Index.html            Web app entry point — picks Admin or Agent view server-side
-Stylesheet.html       Tailwind CDN + shared styles, included on every page
-AdminDashboard.html   Admin table UI (markup only)
-AdminScript.html      Admin UI behaviour
-AgentPortal.html      Agent mobile UI (markup only)
-AgentScript.html      Agent UI behaviour, including document re-upload
+appsscript.json         Manifest (time zone, web app access, OAuth scopes)
+Code.gs                  doGet, the shared onFormSubmit trigger + per-line handlers, setup, reprocessing
+Config.gs                CONFIG.LINES.MOTOR / CONFIG.LINES.PROPERTY - form field titles, Drive/tracker names, ARAL prefixes, cutoff hour
+DriveManager.gs          Per-line folder creation/lookup, moving folders between stages, moving uploaded files
+VettingShared.gs         scoreChecklist_ - the required/satisfied/score loop shared by both engines
+VettingEngine.gs         Motor scoring/routing logic
+PropertyVettingEngine.gs Property scoring/routing logic
+SheetManager.gs          Reads/writes both lines' tracker sheets
+EmailService.gs          Agent/Underwriting notification emails (line-agnostic)
+AdminController.gs       Server functions the Admin Dashboard calls (google.script.run), all take `line` first
+AgentController.gs       Server functions the Agent Portal calls - returns both lines together, tagged
+Index.html               Web app entry point — picks Admin or Agent view server-side
+Stylesheet.html          Tailwind CDN + shared styles, included on every page
+AdminDashboard.html      Admin table UI incl. the Motor/Property tab row (markup only)
+AdminScript.html         Admin UI behaviour
+AgentPortal.html         Agent mobile UI incl. the line filter row (markup only)
+AgentScript.html         Agent UI behaviour, including document re-upload
 ```
 
 ## Setup
@@ -117,16 +172,21 @@ AgentScript.html      Agent UI behaviour, including document re-upload
 All of the steps below should be done while signed in to the
 **`aral@enbfocus.com`** Google account (use the account switcher if
 your browser is signed in as someone else first) — that's the account
-that should own the Form, the Sheet, the Apps Script project, the Drive
-folder structure, and the web app deployment (deployed with "Execute
-as: Me", so it always runs as `aral@enbfocus.com` regardless of who's
-viewing).
+that should own both Forms, the Sheet, the Apps Script project, the
+Drive folder structure, and the web app deployment (deployed with
+"Execute as: Me", so it always runs as `aral@enbfocus.com` regardless
+of who's viewing).
 
-1. **The Google Form already exists** ("ARAL Motor Insurance Lead
-   Intake") — this script is written to match it exactly. `Config.gs`'s
-   `CONFIG.FORM_FIELDS` lists every question title it reads by:
+1. **Both Google Forms already exist** ("ARAL Motor Insurance Lead
+   Intake" and "ARAL House & Commercial Property Insurance Lead
+   Intake") — this script is written to match them exactly.
+   `Config.gs`'s `CONFIG.LINES.MOTOR.FORM_FIELDS` and
+   `CONFIG.LINES.PROPERTY.FORM_FIELDS` list every question title each
+   reads by:
 
-   | `CONFIG.FORM_FIELDS` key | Exact question title on the live form |
+   **Motor:**
+
+   | Key | Exact question title |
    |---|---|
    | `PRODUCER_NAME` | Producer Name |
    | `BRANCH` | Branch |
@@ -145,14 +205,39 @@ viewing).
    | `VEHICLE_SPECS` | Vehicle Specs (Reg #, Make/Model, Year, CC) |
    | `CLAIM_HISTORY_Q` | Do you have a Claim History |
    | `CLAIM_HISTORY_LETTER_FILE` | Claim History Letter |
-   | `AGENT_EMAIL` | *(not a typed question — Google's built-in "Email Address" field from "Collect email addresses")* |
+   | `AGENT_EMAIL` | *(built-in "Email Address" field, see below)* |
 
-   If a question gets reworded on the live form later, update the
+   **Property:**
+
+   | Key | Exact question title |
+   |---|---|
+   | `PRODUCER_NAME` | Producer Name |
+   | `BRANCH` | Branch |
+   | `DP_LICENCE_FILE` | Upload DP Licence |
+   | `ID_FILE` | Upload ID |
+   | `PROOF_OF_ADDRESS_FILE` | Upload Proof Of Address |
+   | `DIRECTORS_ID_DP_FILE` | Upload Directors ID & DP |
+   | `OCCUPANCY_TYPE` | Type of Occupancy |
+   | `RESIDENTIAL_CONTENTS` | Contents for Residential |
+   | `AGENT_EMAIL` | *(built-in "Email Address" field, see below)* |
+
+   `AGENT_EMAIL` isn't a typed question on either form — it's Google's
+   built-in field from turning on "Collect email addresses" in Form
+   settings, which always shows up in submissions as `Email Address`.
+
+   If a question gets reworded on either live form later, update the
    matching string here — the trigger matches by exact title and will
    silently treat a renamed field as blank otherwise.
 
-2. **Link the Form to a new Google Sheet** (Form → Responses tab → the
-   green Sheets icon).
+2. **Link both Forms to the same Google Sheet** (on each Form's
+   Responses tab, click the green Sheets icon, and choose "Select
+   existing spreadsheet" for the second one so both land in one Sheet).
+   Each Form gets its own response tab (Google names them "Form
+   Responses 1", "Form Responses 2", etc.) — **rename each tab**, or
+   update `CONFIG.LINES.MOTOR.RESPONSE_SHEET_NAME` /
+   `CONFIG.LINES.PROPERTY.RESPONSE_SHEET_NAME` in `Config.gs` to match
+   whatever they're actually called. The trigger uses this to tell
+   which Form a submission came from.
 
 3. **Open the Sheet → Extensions → Apps Script**, and create each file
    above in the script editor (matching filenames exactly, including the
@@ -170,8 +255,8 @@ viewing).
 5. **Run `setupPipeline` once** from the script editor's function
    dropdown (▶ Run). The first run will ask you to authorize Drive,
    Sheets, Gmail, and trigger-management permissions — approve them.
-   This creates the Drive folder structure, the `Pipeline_Tracker`
-   sheet, and installs the `onFormSubmitTrigger` trigger.
+   This creates both lines' Drive folder structures, both tracker
+   sheets, and installs the single shared `onFormSubmitTrigger` trigger.
 
 6. **Deploy as a web app**: Deploy → New deployment → type **Web app**.
    - Execute as: **Me** (so the script can always manage the Drive
@@ -184,15 +269,16 @@ viewing).
      to asking for an email address in that case.
    - Copy the resulting web app URL and share it — that's the one link
      for both admins and agents; the app shows each their own view
-     automatically.
+     automatically, with a tab to switch between Motor and Property.
 
-7. **Test it**: submit the Form once with every document the checklist in
-   "Vetting rules" above would require for your test answers, confirm a
-   folder lands in `03_Ready_For_Underwriting` and a row appears in
-   `Pipeline_Tracker`. Submit again missing a required document and
-   confirm it lands in `01_Incomplete_Flagged` and the agent gets an
-   email. Then open the Admin Dashboard and use **Set name** on that row
-   to confirm the Client Name / folder-rename flow works.
+7. **Test it**, for each line: submit that Form once with every document
+   the checklist in "Vetting rules" above would require for your test
+   answers, confirm a folder lands in `03_Ready_For_Underwriting` under
+   that line's Drive subtree and a row appears in the matching tracker
+   sheet. Submit again missing a required document and confirm it lands
+   in `01_Incomplete_Flagged` and the agent gets an email. Then open the
+   Admin Dashboard, switch to that line's tab, and use **Set name** on
+   that row to confirm the Client Name / folder-rename flow works.
 
 ## Useful maintenance functions
 
@@ -200,9 +286,9 @@ Run these from the Apps Script editor's function dropdown when needed:
 
 - `setupPipeline` — safe to re-run any time; won't duplicate folders or
   triggers.
-- `reprocessAllRows` — re-scores every tracker row against its Drive
-  folder's current contents. Useful after changing `Config.gs`, or after
-  manually dropping a file into a folder outside the app.
+- `reprocessAllRows` — re-scores every tracker row (both lines) against
+  its Drive folder's current contents. Useful after changing `Config.gs`,
+  or after manually dropping a file into a folder outside the app.
 
 ## Honest notes / limitations
 
@@ -213,10 +299,14 @@ Run these from the Apps Script editor's function dropdown when needed:
   mobile-first responsive page that works well bookmarked or added to a
   phone's home screen as a shortcut — the day-to-day experience agents
   need — just not an offline-capable PWA in the strict sense.
-- **Form field matching is title-based.** `onFormSubmitTrigger` reads
-  `e.namedValues` keyed by each question's exact title. If you reword a
-  question on the Form, update the matching string in `Config.gs` or the
-  trigger will silently treat that field as blank.
+- **Form field matching is title-based.** Each line's handler reads
+  `e.namedValues` keyed by that line's exact question titles. If you
+  reword a question on either Form, update the matching string in
+  `Config.gs` or the trigger will silently treat that field as blank.
+- **The Property checklist is missing a Sum Insured / Building Value
+  check** — see the open question under "Vetting rules → Property"
+  above. That's the one piece of this line that still needs a decision
+  before the checklist can be called complete.
 - **Identity detection depends on the deployment's access setting.**
   With "Anyone within domain" + "Execute as: Me", `Session.getActiveUser()`
   reliably returns the viewer's email, which drives automatic admin/agent

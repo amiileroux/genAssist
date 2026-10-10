@@ -1,10 +1,15 @@
 /**
  * Central configuration for the ARAL -> TATIL lead vetting pipeline.
  *
- * Edit FORM_FIELDS below so the strings match the exact question titles
- * on the Google Form that feeds the bound Sheet (see README.md for the
- * full field reference). Everything else in the script reads from here,
- * so this is the only file you should need to touch to adapt wording.
+ * This app runs two independent lines of business out of one Apps
+ * Script project: Motor and Property (House/Commercial). Each Google
+ * Form feeds its own tab of this bound Sheet; CONFIG.LINES.<key> holds
+ * everything specific to one line (its exact form question titles, its
+ * own tracker sheet, its own Drive subfolder tree, its own ARAL code
+ * prefix). Shared code (DriveManager.gs, SheetManager.gs, Code.gs,
+ * AdminController.gs, AgentController.gs) takes a `line` key ('MOTOR'
+ * or 'PROPERTY') and looks up the right config from here - that's the
+ * only thing that should need touching to adapt wording or add a line.
  */
 
 var CONFIG = {
@@ -18,10 +23,6 @@ var CONFIG = {
     }
   },
 
-  SHEET: {
-    TRACKER_NAME: 'Pipeline_Tracker'
-  },
-
   STATUS: {
     INCOMPLETE: 'Incomplete / Flagged',
     SUPPLEMENTAL: 'Needs Supplemental Info',
@@ -32,60 +33,115 @@ var CONFIG = {
   // 24-hour clock, in the script's time zone (see appsscript.json).
   CUTOFF_HOUR: 11,
 
-  // Exact Google Form question titles this script expects to find in
-  // the onFormSubmit event's namedValues map. These match the live
-  // "ARAL Motor Insurance Lead Intake" form.
-  FORM_FIELDS: {
-    // Section 1: Official / Intermediary Information
-    PRODUCER_NAME: 'Producer Name',
-    BRANCH: 'Branch',
+  LINES: {
+    MOTOR: {
+      LABEL: 'Motor',
+      ARAL_PREFIX: 'ARAL-MOT',
+      // The tab name Google Forms writes raw responses to for the Motor
+      // Form - confirm this in the Sheet after linking the Form (Forms
+      // auto-names it "Form Responses N"; rename the tab to match this
+      // if you want a clearer name, or update this to match).
+      RESPONSE_SHEET_NAME: 'Motor Form Responses',
+      TRACKER_SHEET_NAME: 'Motor_Pipeline_Tracker',
+      DRIVE_SUBFOLDER_NAME: 'Motor',
+      SEQUENCE_PROPERTY_KEY: 'ARAL_SEQUENCE_MOTOR',
 
-    // Section 1: Uploads of Client's Info
-    DP_LICENCE_FILE: 'Upload DP Licence',
-    ID_FILE: 'Upload ID',
-    CERT_OF_REGISTRATION_FILE: 'Certificate of Registration',
-    VEHICLE_INVOICE_FILE: 'Upload Vehicle Invoice',
-    CERTIFIED_COPY_FILE: 'Upload Certified Copy',
-    PROOF_OF_ADDRESS_FILE: 'Proof Of Address',
+      // Exact Google Form question titles this script expects to find in
+      // the onFormSubmit event's namedValues map. These match the live
+      // "ARAL Motor Insurance Lead Intake" form.
+      FORM_FIELDS: {
+        // Section 1: Official / Intermediary Information
+        PRODUCER_NAME: 'Producer Name',
+        BRANCH: 'Branch',
 
-    // Section 2: Proposer / Client Personal Details
-    VEHICLE_KEPT_LOCATION: 'Where is the Vehicle being Kept?',
-    CLIENT_CONTACT_INFO: "Client's contact Info (Email & Phone)",
-    CLIENT_OCCUPATION: "Client's occupation & Employer",
-    MARITAL_STATUS: "Client's marital Status",
+        // Section 1: Uploads of Client's Info
+        DP_LICENCE_FILE: 'Upload DP Licence',
+        ID_FILE: 'Upload ID',
+        CERT_OF_REGISTRATION_FILE: 'Certificate of Registration',
+        VEHICLE_INVOICE_FILE: 'Upload Vehicle Invoice',
+        CERTIFIED_COPY_FILE: 'Upload Certified Copy',
+        PROOF_OF_ADDRESS_FILE: 'Proof Of Address',
 
-    // Section 3: Coverage & Vehicle Info
-    NEWLY_PURCHASED: 'Is this vehicle newly purchased?',
-    HAS_NCD_LETTER_Q: 'Do you have an NCD Letter?',
-    NCD_LETTER_FILE: 'NCD Letter',
-    NCD_LEVEL: "How much is your client's NCD (No Claim Discount)",
-    COVERAGE_TYPE: 'Coverage Type',
-    VALUE_OF_VEHICLE: 'Value Of vehicle',
-    VEHICLE_SPECS: 'Vehicle Specs (Reg #, Make/Model, Year, CC)',
+        // Section 2: Proposer / Client Personal Details
+        VEHICLE_KEPT_LOCATION: 'Where is the Vehicle being Kept?',
+        CLIENT_CONTACT_INFO: "Client's contact Info (Email & Phone)",
+        CLIENT_OCCUPATION: "Client's occupation & Employer",
+        MARITAL_STATUS: "Client's marital Status",
 
-    // Section 5: Extensions & Commercial Check
-    CLAIM_HISTORY_Q: 'Do you have a Claim History',
-    CLAIM_HISTORY_LETTER_FILE: 'Claim History Letter',
-    COMMERCIAL_USE_Q: 'Is this vehicle used for Commercial Purposes?',
+        // Section 3: Coverage & Vehicle Info
+        NEWLY_PURCHASED: 'Is this vehicle newly purchased?',
+        HAS_NCD_LETTER_Q: 'Do you have an NCD Letter?',
+        NCD_LETTER_FILE: 'NCD Letter',
+        NCD_LEVEL: "How much is your client's NCD (No Claim Discount)",
+        COVERAGE_TYPE: 'Coverage Type',
+        VALUE_OF_VEHICLE: 'Value Of vehicle',
+        VEHICLE_SPECS: 'Vehicle Specs (Reg #, Make/Model, Year, CC)',
 
-    // Built-in field Google Forms adds automatically when "Collect email
-    // addresses" is turned on — this is the submitting agent's email.
-    AGENT_EMAIL: 'Email Address'
+        // Section 5: Extensions & Commercial Check
+        CLAIM_HISTORY_Q: 'Do you have a Claim History',
+        CLAIM_HISTORY_LETTER_FILE: 'Claim History Letter',
+        COMMERCIAL_USE_Q: 'Is this vehicle used for Commercial Purposes?',
+
+        // Built-in field Google Forms adds automatically when "Collect
+        // email addresses" is turned on - the submitting agent's email.
+        AGENT_EMAIL: 'Email Address'
+      },
+
+      // "How much is your client's NCD" answer that means no discount/
+      // history exists at all, so no NCD Letter is expected.
+      NCD_NONE_VALUE: 'NONE',
+
+      // Substrings (case-insensitive) in the "Do you have an NCD Letter?"
+      // answer that mean the client is a first-time/new driver, who by
+      // definition has no NCD or claims history yet - exempts both letters.
+      NEW_DRIVER_MARKERS: ['first-time', 'new driver']
+    },
+
+    PROPERTY: {
+      LABEL: 'Property (House / Commercial)',
+      ARAL_PREFIX: 'ARAL-PROP',
+      // Confirm this against the actual tab name once the Property Form
+      // is linked to this Sheet (see MOTOR.RESPONSE_SHEET_NAME above).
+      RESPONSE_SHEET_NAME: 'Property Form Responses',
+      TRACKER_SHEET_NAME: 'Property_Pipeline_Tracker',
+      DRIVE_SUBFOLDER_NAME: 'Property',
+      SEQUENCE_PROPERTY_KEY: 'ARAL_SEQUENCE_PROPERTY',
+
+      // Exact Google Form question titles on the live "ARAL House &
+      // Commercial Property Insurance Lead Intake" form.
+      FORM_FIELDS: {
+        // Section 1: Official / Intermediary Information
+        PRODUCER_NAME: 'Producer Name',
+        BRANCH: 'Branch',
+
+        // Section 2: Uploads of Client's Info
+        DP_LICENCE_FILE: 'Upload DP Licence',
+        ID_FILE: 'Upload ID',
+        PROOF_OF_ADDRESS_FILE: 'Upload Proof Of Address',
+        DIRECTORS_ID_DP_FILE: 'Upload Directors ID & DP',
+
+        // Section 3: Coverage Options & Insured Values
+        OCCUPANCY_TYPE: 'Type of Occupancy',
+        RESIDENTIAL_CONTENTS: 'Contents for Residential',
+
+        // Built-in field Google Forms adds automatically when "Collect
+        // email addresses" is turned on - the submitting agent's email.
+        AGENT_EMAIL: 'Email Address'
+      },
+
+      // "Type of Occupancy" answers that mean Directors ID & DP is
+      // required (the form's own label: "For Commercial and Small
+      // Businesses ONLY").
+      BUSINESS_OCCUPANCY_VALUES: ['commercial', 'small business'],
+
+      // "Type of Occupancy" answer that means the Contents question applies.
+      RESIDENTIAL_OCCUPANCY_VALUE: 'residential'
+    }
   },
-
-  // "How much is your client's NCD" answer that means no discount/history
-  // exists at all, so no NCD Letter is expected.
-  NCD_NONE_VALUE: 'NONE',
-
-  // Substrings (case-insensitive) in the "Do you have an NCD Letter?"
-  // answer that mean the client is a first-time/new driver, who by
-  // definition has no NCD or claims history yet - exempts both letters.
-  NEW_DRIVER_MARKERS: ['first-time', 'new driver'],
 
   PROPERTY_KEYS: {
     ROOT_FOLDER_ID: 'ROOT_FOLDER_ID',
     SUBFOLDER_ID_PREFIX: 'SUBFOLDER_ID_',
-    ARAL_SEQUENCE: 'ARAL_SEQUENCE',
     ADMIN_EMAILS: 'ADMIN_EMAILS',
     UNDERWRITING_EMAIL: 'UNDERWRITING_EMAIL'
   }
@@ -108,4 +164,11 @@ function getAdminEmails_() {
 /** Script Property UNDERWRITING_EMAIL: where "ready for underwriting" alerts go. */
 function getUnderwritingEmail_() {
   return getScriptProperty_(CONFIG.PROPERTY_KEYS.UNDERWRITING_EMAIL) || '';
+}
+
+/** @return {Object} CONFIG.LINES[lineKey], throwing a clear error if lineKey is unknown. */
+function getLineConfig_(lineKey) {
+  var line = CONFIG.LINES[lineKey];
+  if (!line) throw new Error('Unknown line of business: ' + lineKey);
+  return line;
 }

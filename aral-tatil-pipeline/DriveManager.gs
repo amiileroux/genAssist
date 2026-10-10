@@ -2,9 +2,16 @@
  * Drive folder architecture + file placement for the pipeline.
  * Folder IDs are cached in Script Properties after first creation so we
  * never re-search Drive by name on every submission.
+ *
+ * Structure (one root, one subtree per line of business):
+ *   /ARAL_Insurance_Pipeline/
+ *     Motor/
+ *       01_Incomplete_Flagged/ 02_Needs_Supplemental_Info/ 03_Ready_For_Underwriting/ 04_Completed_Policies/
+ *     Property/
+ *       01_Incomplete_Flagged/ 02_Needs_Supplemental_Info/ 03_Ready_For_Underwriting/ 04_Completed_Policies/
  */
 
-function getOrCreateRootStructure_() {
+function getOrCreateRootFolder_() {
   var props = PropertiesService.getScriptProperties();
   var rootId = props.getProperty(CONFIG.PROPERTY_KEYS.ROOT_FOLDER_ID);
   var rootFolder = rootId ? safeGetFolder_(rootId) : null;
@@ -13,22 +20,38 @@ function getOrCreateRootStructure_() {
     rootFolder = findOrCreateFolder_(DriveApp.getRootFolder(), CONFIG.DRIVE.ROOT_FOLDER_NAME);
     props.setProperty(CONFIG.PROPERTY_KEYS.ROOT_FOLDER_ID, rootFolder.getId());
   }
+  return rootFolder;
+}
+
+/** @return {{root:Folder, lineFolder:Folder, subfolders:Object}} the Drive structure for one line of business. */
+function getOrCreateLineStructure_(lineKey) {
+  var line = getLineConfig_(lineKey);
+  var props = PropertiesService.getScriptProperties();
+  var rootFolder = getOrCreateRootFolder_();
+
+  var lineFolderPropKey = CONFIG.PROPERTY_KEYS.SUBFOLDER_ID_PREFIX + lineKey + '_ROOT';
+  var lineFolderId = props.getProperty(lineFolderPropKey);
+  var lineFolder = lineFolderId ? safeGetFolder_(lineFolderId) : null;
+  if (!lineFolder) {
+    lineFolder = findOrCreateFolder_(rootFolder, line.DRIVE_SUBFOLDER_NAME);
+    props.setProperty(lineFolderPropKey, lineFolder.getId());
+  }
 
   var subfolders = {};
   Object.keys(CONFIG.DRIVE.SUBFOLDERS).forEach(function (key) {
     var name = CONFIG.DRIVE.SUBFOLDERS[key];
-    var propKey = CONFIG.PROPERTY_KEYS.SUBFOLDER_ID_PREFIX + key;
+    var propKey = CONFIG.PROPERTY_KEYS.SUBFOLDER_ID_PREFIX + lineKey + '_' + key;
     var id = props.getProperty(propKey);
     var folder = id ? safeGetFolder_(id) : null;
 
     if (!folder) {
-      folder = findOrCreateFolder_(rootFolder, name);
+      folder = findOrCreateFolder_(lineFolder, name);
       props.setProperty(propKey, folder.getId());
     }
     subfolders[key] = folder;
   });
 
-  return { root: rootFolder, subfolders: subfolders };
+  return { root: rootFolder, lineFolder: lineFolder, subfolders: subfolders };
 }
 
 function safeGetFolder_(id) {
@@ -45,31 +68,37 @@ function findOrCreateFolder_(parent, name) {
   return parent.createFolder(name);
 }
 
-function getSubfolderForStatus_(statusKey) {
-  return getOrCreateRootStructure_().subfolders[statusKey];
+function getSubfolderForStatus_(lineKey, statusKey) {
+  return getOrCreateLineStructure_(lineKey).subfolders[statusKey];
 }
 
-function createClientFolder_(aralCode, clientName, coverageType) {
-  var structure = getOrCreateRootStructure_();
-  // Client Name isn't collected on the form (it's read off the uploaded DP
-  // Licence by whoever reviews it), so a fresh submission is unnamed until
-  // an admin sets it via the dashboard - see AdminController.admin_setClientName.
+/**
+ * @param {string} lineKey 'MOTOR' or 'PROPERTY'
+ * @param {string} aralCode
+ * @param {string} clientName
+ * @param {string} categoryLabel - Coverage Type (Motor) or Type of Occupancy (Property), used in the folder name
+ */
+function createClientFolder_(lineKey, aralCode, clientName, categoryLabel) {
+  var structure = getOrCreateLineStructure_(lineKey);
+  // Client Name isn't collected on either form (it's read off the uploaded
+  // DP Licence by whoever reviews it), so a fresh submission is unnamed
+  // until an admin sets it via the dashboard - see AdminController.admin_setClientName.
   var safeClient = (clientName || 'Pending-Name').replace(/[\\\/:*?"<>|]/g, '_').trim();
-  var safeCoverage = (coverageType || 'Motor').replace(/[\\\/:*?"<>|]/g, '_').trim();
-  var folderName = aralCode + '_' + safeClient + '_' + safeCoverage;
+  var safeCategory = (categoryLabel || getLineConfig_(lineKey).LABEL).replace(/[\\\/:*?"<>|]/g, '_').trim();
+  var folderName = aralCode + '_' + safeClient + '_' + safeCategory;
   // New folders start in Incomplete; the vetting engine moves them on immediately after.
   return structure.subfolders.INCOMPLETE.createFolder(folderName);
 }
 
 /** Renames a client folder in place, keeping its ARAL code prefix. Used when an admin sets the client's name. */
-function renameClientFolder_(folder, aralCode, newClientName, coverageType) {
+function renameClientFolder_(folder, aralCode, newClientName, categoryLabel) {
   var safeClient = (newClientName || 'Pending-Name').replace(/[\\\/:*?"<>|]/g, '_').trim();
-  var safeCoverage = (coverageType || 'Motor').replace(/[\\\/:*?"<>|]/g, '_').trim();
-  folder.setName(aralCode + '_' + safeClient + '_' + safeCoverage);
+  var safeCategory = (categoryLabel || 'Insurance').replace(/[\\\/:*?"<>|]/g, '_').trim();
+  folder.setName(aralCode + '_' + safeClient + '_' + safeCategory);
 }
 
-function moveFolderToStatus_(folder, statusKey) {
-  var target = getSubfolderForStatus_(statusKey);
+function moveFolderToStatus_(lineKey, folder, statusKey) {
+  var target = getSubfolderForStatus_(lineKey, statusKey);
   var parents = folder.getParents();
   while (parents.hasNext()) {
     var parent = parents.next();

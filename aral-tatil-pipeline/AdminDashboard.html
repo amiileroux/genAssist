@@ -1,5 +1,5 @@
 <div id="admin-root" class="max-w-7xl mx-auto p-4 sm:p-6">
-  <header class="flex flex-wrap items-center justify-between gap-3 mb-6">
+  <header class="flex flex-wrap items-center justify-between gap-3 mb-4">
     <div>
       <h1 class="text-xl sm:text-2xl font-bold text-slate-900">ARAL &rarr; TATIL Lead Pipeline</h1>
       <p class="text-sm text-slate-500">Back-office vetting &amp; routing dashboard</p>
@@ -14,6 +14,8 @@
     </div>
   </header>
 
+  <div id="line-tabs" class="flex gap-2 mb-6"></div>
+
   <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6" id="status-summary"></div>
 
   <div class="overflow-x-auto rounded-lg border border-slate-200 bg-white shadow-sm">
@@ -22,7 +24,7 @@
         <tr>
           <th class="px-3 py-2 font-medium">Client</th>
           <th class="px-3 py-2 font-medium">Agent</th>
-          <th class="px-3 py-2 font-medium">Policy Type</th>
+          <th class="px-3 py-2 font-medium" id="category-col-header">Coverage Type</th>
           <th class="px-3 py-2 font-medium">Submitted</th>
           <th class="px-3 py-2 font-medium">Score</th>
           <th class="px-3 py-2 font-medium">Status</th>

@@ -5,6 +5,11 @@ function clientLabel_(record) {
   return record.clientName && String(record.clientName).trim() ? record.clientName : 'this client';
 }
 
+/** Motor records carry Coverage Type, Property records carry Type of Occupancy - either way, the category to show in an email. */
+function categoryLabel_(record) {
+  return record.line === 'PROPERTY' ? record.occupancyType : record.coverageType;
+}
+
 function notifyAgentMissingFields_(record) {
   if (!record.agentEmail) return;
   var subject = '[ARAL] Action needed on ' + record.aralCode + ' - ' + clientLabel_(record);
@@ -42,7 +47,7 @@ function notifyUnderwritingReady_(record) {
   if (!to) return;
   var subject = '[ARAL] Ready for Underwriting - ' + record.aralCode + ' - ' + clientLabel_(record);
   var body = [
-    clientLabel_(record) + ' (' + record.aralCode + ', ' + record.coverageType + ') is 100% vetted and ready for TATIL Underwriting.',
+    clientLabel_(record) + ' (' + record.aralCode + ', ' + categoryLabel_(record) + ') is 100% vetted and ready for TATIL Underwriting.',
     'Drive folder: ' + record.folderUrl,
     'Agent: ' + record.agentName + ' <' + record.agentEmail + '>'
   ].join('\n');

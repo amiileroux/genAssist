@@ -24,7 +24,7 @@
 function isNewDriver_(hasNcdLetterAnswer) {
   if (!hasNcdLetterAnswer) return false;
   var lower = String(hasNcdLetterAnswer).toLowerCase();
-  return CONFIG.NEW_DRIVER_MARKERS.some(function (marker) { return lower.indexOf(marker) !== -1; });
+  return CONFIG.LINES.MOTOR.NEW_DRIVER_MARKERS.some(function (marker) { return lower.indexOf(marker) !== -1; });
 }
 
 function isCorporateCoverage_(coverageType) {
@@ -58,10 +58,7 @@ function isAlreadyPurchased_(newlyPurchasedAnswer) {
  *   newlyPurchased {string} - "Is this vehicle newly purchased?" answer ("Yes"/"No")
  * @return {{score:number, statusKey:string, missing:string[]}}
  */
-function evaluateSubmission_(record) {
-  var missing = [];
-  var required = 0;
-  var satisfied = 0;
+function evaluateMotorSubmission_(record) {
   var newDriver = !!record.newDriver;
   var alreadyPurchased = isAlreadyPurchased_(record.newlyPurchased);
 
@@ -73,7 +70,7 @@ function evaluateSubmission_(record) {
     { required: alreadyPurchased, ok: record.hasCertifiedCopy, label: 'Certified Copy not uploaded (required once the vehicle is already purchased - dealership specs are no longer enough)' }
   ];
 
-  var ncdRequired = !newDriver && String(record.ncdLevel || '').toUpperCase() !== CONFIG.NCD_NONE_VALUE;
+  var ncdRequired = !newDriver && String(record.ncdLevel || '').toUpperCase() !== CONFIG.LINES.MOTOR.NCD_NONE_VALUE;
   checks.push({ required: ncdRequired, ok: record.hasNcdLetterFile, label: 'NCD Letter not uploaded' });
 
   var claimHistoryRequired = !newDriver && String(record.claimHistoryAnswer || '').toLowerCase() === 'yes';
@@ -82,18 +79,5 @@ function evaluateSubmission_(record) {
   var certOfRegistrationRequired = isCorporateCoverage_(record.coverageType);
   checks.push({ required: certOfRegistrationRequired, ok: record.hasCertOfRegistration, label: 'Certificate of Registration (business) not uploaded' });
 
-  checks.forEach(function (check) {
-    if (!check.required) return;
-    required++;
-    if (check.ok) {
-      satisfied++;
-    } else {
-      missing.push(check.label);
-    }
-  });
-
-  var score = required === 0 ? 100 : Math.round((satisfied / required) * 100);
-  var statusKey = score === 100 ? 'READY' : 'INCOMPLETE';
-
-  return { score: score, statusKey: statusKey, missing: missing };
+  return scoreChecklist_(checks);
 }
