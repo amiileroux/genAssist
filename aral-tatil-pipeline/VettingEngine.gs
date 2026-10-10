@@ -31,9 +31,14 @@ function isCorporateCoverage_(coverageType) {
   return String(coverageType || '').toLowerCase().indexOf('corporate') !== -1;
 }
 
-/** "Is this vehicle newly purchased?" = No means they've had it a while, i.e. it's already purchased. */
+/**
+ * "Is this vehicle newly purchased?" = No means they've had it a while,
+ * i.e. it's already purchased/owned. Matches "No" or any answer starting
+ * with "No" (e.g. "No, already owned") so relabeling that option on the
+ * live Form doesn't silently break this check.
+ */
 function isAlreadyPurchased_(newlyPurchasedAnswer) {
-  return String(newlyPurchasedAnswer || '').trim().toLowerCase() === 'no';
+  return /^no\b/i.test(String(newlyPurchasedAnswer || '').trim());
 }
 
 /**
