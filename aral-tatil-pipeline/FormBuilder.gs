@@ -9,11 +9,17 @@
  * Run `createBothForms()` once from the function dropdown. Check View >
  * Logs afterward for each form's edit/live URL.
  *
+ * Section titles carry a scan-aid emoji (matching the style of the
+ * existing welcome-page checklist) so agents can jump to the right part
+ * of a long form faster while filling it out.
+ *
  * Known gaps versus the hand-built forms this was reconstructed from:
- *  - No header/logo image. Google Forms' API has no endpoint for
- *    setting a form's theme/header image at all (only the Forms UI's
- *    "Customize theme" button can) - add the ARAL logo that way after
- *    the form is created.
+ *  - No header/logo image, and no brand color theme. Google Forms' API
+ *    has no endpoint for setting a form's theme/header image or colors
+ *    at all (only the Forms UI's "Customize theme" button can) - after
+ *    each form is created, open it, click Customize theme, and pick the
+ *    ARAL logo as the header image + the brand green (#14301F) as the
+ *    theme color. See README.md "Setup" for the exact steps.
  *  - The Property form's welcome-page copy and its Section 2 "why we
  *    need this" subtitle weren't available when this was written
  *    (placeholders below are reused from the Motor form) - edit
@@ -115,7 +121,7 @@ function createMotorForm() {
     'Ready? Let\'s go!'
   );
 
-  addSection_(form, 'SECTION 1: Official / Intermediary Information',
+  addSection_(form, '📋 SECTION 1: Official / Intermediary Information',
     'Tracks which agent and branch originated the proposal so commissions are credited accurately and underwriting queries reach the right person quickly.');
   addShortAnswer_(form, fields.PRODUCER_NAME, { required: true, helpText: 'Eg. John Doe' });
   addMultipleChoice_(form, fields.BRANCH, [
@@ -124,7 +130,7 @@ function createMotorForm() {
     'A. Rauseo Associates Ltd Agency'
   ], { required: true, other: true });
 
-  addSection_(form, "Section 1: Uploads of Client's Info",
+  addSection_(form, "📎 Section 1: Uploads of Client's Info",
     'Secures documents and legal declaration for the policy contract.');
   addFileUpload_(form, fields.DP_LICENCE_FILE, { required: true, maxFiles: 10 });
   addFileUpload_(form, fields.ID_FILE, { maxFiles: 5 });
@@ -139,7 +145,7 @@ function createMotorForm() {
     helpText: 'With letter of authorization if needed, from landlord.', maxFiles: 5
   });
 
-  addSection_(form, 'SECTION 2: Proposer / Client Personal Details Section',
+  addSection_(form, '👤 SECTION 2: Proposer / Client Personal Details Section',
     "Establishes the policyholder's legal identity, confirms official contact channels, and provides key risk parameters like age and occupation.");
   addMultipleChoice_(form, fields.VEHICLE_KEPT_LOCATION, [
     'Same address on DP, locked garage',
@@ -154,7 +160,7 @@ function createMotorForm() {
   addShortAnswer_(form, fields.CLIENT_OCCUPATION, { required: true, helpText: 'Example: Estate Corporal, WASA (662-1000)' });
   addMultipleChoice_(form, fields.MARITAL_STATUS, ['Married', 'Single', 'Widowed', 'Divorced'], {});
 
-  addSection_(form, 'Section 3: Coverage & Vehicle Info',
+  addSection_(form, '🚗 Section 3: Coverage & Vehicle Info',
     'Identifies the insured asset, policy term, and coverage level.');
   addMultipleChoice_(form, fields.NEWLY_PURCHASED, ['Yes', 'No, already owned'], { required: true });
   addMultipleChoice_(form, fields.HAS_NCD_LETTER_Q, [
@@ -185,7 +191,7 @@ function createMotorForm() {
   addShortAnswer_(form, fields.VEHICLE_SPECS, { helpText: 'Example: PEB 4731 | Nissan Note | 2018 | 1190 CC | if NONE State' });
   addShortAnswer_(form, 'Engine & Chassis Numbers', { helpText: 'Example: HR12-182448J | E12587623 | If NONE State' });
 
-  addSection_(form, 'Section 4: Driver & Claims History',
+  addSection_(form, '🏁 Section 4: Driver & Claims History',
     'Determines risk tier, discount (NCD) eligibility, and driver restrictions.');
   addMultipleChoice_(form, 'Do you have an Additional driver?', ['Yes', 'No'], {
     required: true, helpText: '*Note* this can be changed, but the premium may vary.'
@@ -193,7 +199,7 @@ function createMotorForm() {
   addFileUpload_(form, "Additional Driver's DP", { maxFiles: 5 });
   addShortAnswer_(form, 'Occupation of Additional Driver', { required: true });
 
-  addSection_(form, 'Section 5: Extensions & Commercial Check',
+  addSection_(form, '➕ Section 5: Extensions & Commercial Check',
     'Adds optional coverage and routes commercial vehicles to extra questions.');
   addCheckboxes_(form, 'Policy Extensions (Comprehensive ONLY)', [
     'Personal accident ("P" Vehicles ONLY).',
@@ -229,7 +235,7 @@ function createPropertyForm() {
     'Hey Aral Agent! 🚀 Before we dive in, please have the following documents ready.\n\nReady? Let\'s go!'
   );
 
-  addSection_(form, 'SECTION 1: Official / Intermediary Information',
+  addSection_(form, '📋 SECTION 1: Official / Intermediary Information',
     'Tracks which agent and branch originated the proposal so commissions are credited accurately and underwriting queries reach the right person quickly.');
   addShortAnswer_(form, fields.PRODUCER_NAME, { required: true, helpText: 'Eg. John Doe' });
   addMultipleChoice_(form, fields.BRANCH, [
@@ -239,7 +245,7 @@ function createPropertyForm() {
   ], { required: true, other: true });
 
   // Placeholder subtitle - the original wasn't visible on screen when this was written; reused from the Motor form's equivalent section.
-  addSection_(form, "Section 2: Uploads of Client's Info",
+  addSection_(form, "📎 Section 2: Uploads of Client's Info",
     'Secures documents and legal declaration for the policy contract.');
   addFileUpload_(form, fields.DP_LICENCE_FILE, { required: true, maxFiles: 5 });
   addFileUpload_(form, fields.ID_FILE, { maxFiles: 5 });
@@ -247,7 +253,7 @@ function createPropertyForm() {
   addFileUpload_(form, fields.PROPERTY_IMAGE_FILE, { required: true, helpText: 'An actual photo of the property being insured.', maxFiles: 1 });
   addFileUpload_(form, fields.DIRECTORS_ID_DP_FILE, { helpText: 'For Commercial and Small Businesses ONLY', maxFiles: 10 });
 
-  addSection_(form, 'Section 3: Coverage Options & Insured Values',
+  addSection_(form, '🏠 Section 3: Coverage Options & Insured Values',
     'Defines scope of coverage and required sums insured for proper risk assessment.');
   addMultipleChoice_(form, fields.OCCUPANCY_TYPE, ['Residential', 'Commercial', 'Small Business', 'Contents ONLY'], {
     required: true, other: true

@@ -2,8 +2,8 @@
 (function () {
   var LINES = [
     { key: 'ALL', label: 'All' },
-    { key: 'MOTOR', label: 'Motor' },
-    { key: 'PROPERTY', label: 'Property' }
+    { key: 'MOTOR', label: '🚗 Motor' },
+    { key: 'PROPERTY', label: '🏠 Property' }
   ];
 
   var state = { email: '', records: [], pendingUpload: null, lineFilter: 'ALL' };
@@ -18,9 +18,9 @@
 
   function statusColor(status) {
     switch (status) {
-      case 'Ready for Underwriting': return 'bg-emerald-100 text-emerald-800';
+      case 'Ready for Underwriting': return 'bg-aral-light/20 text-aral-dark';
       case 'Needs Supplemental Info': return 'bg-amber-100 text-amber-800';
-      case 'Policy Issued': return 'bg-sky-100 text-sky-800';
+      case 'Policy Issued': return 'bg-aral-dark/10 text-aral-dark';
       default: return 'bg-rose-100 text-rose-800';
     }
   }
@@ -65,7 +65,7 @@
       var btn = document.createElement('button');
       btn.textContent = line.label;
       btn.className = 'text-xs font-medium px-3 py-1.5 rounded-full border ' +
-        (active ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-600 border-slate-300');
+        (active ? 'bg-aral-dark text-white border-aral-dark' : 'bg-white text-slate-600 border-slate-300');
       btn.addEventListener('click', function () {
         state.lineFilter = line.key;
         renderLineFilter();

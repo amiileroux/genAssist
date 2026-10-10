@@ -160,7 +160,7 @@ EmailService.gs          Agent/Underwriting notification emails (line-agnostic)
 AdminController.gs       Server functions the Admin Dashboard calls (google.script.run), all take `line` first
 AgentController.gs       Server functions the Agent Portal calls - returns both lines together, tagged
 Index.html               Web app entry point — picks Admin or Agent view server-side
-Stylesheet.html          Tailwind CDN + shared styles, included on every page
+Stylesheet.html          Tailwind CDN + ARAL brand colors (tailwind.config: aral-dark/aral-light) + shared styles, included on every page
 AdminDashboard.html      Admin table UI incl. the Motor/Property tab row (markup only)
 AdminScript.html         Admin UI behaviour
 AgentPortal.html         Agent mobile UI incl. the line filter row (markup only)
@@ -192,11 +192,23 @@ of who's viewing).
    each Form's edit and live URL.
 
    `FormBuilder.gs`'s own header comment lists what it can't reproduce
-   (the ARAL logo/header image — add that afterward via each Form's own
-   **Customize theme** button, since Google's API has no way to set it
-   programmatically — and the Property form's original welcome-page copy
-   and Section 2 subtitle, which weren't available when it was written
-   and are left as placeholders to replace with your real wording).
+   (the ARAL logo/header image and brand color theme — add those
+   afterward via each Form's own **Customize theme** button, since
+   Google's API has no way to set them programmatically — and the
+   Property form's original welcome-page copy and Section 2 subtitle,
+   which weren't available when it was written and are left as
+   placeholders to replace with your real wording).
+
+   **To brand each Form** (a ~30-second manual step, once per Form):
+   open the Form → click the palette icon (**Customize theme**) → under
+   "Header", upload the ARAL logo (it'll also pull a matching accent
+   color automatically) → or, to set the color by hand instead, pick
+   **Custom** and enter `#14301F` (the deep forest green from the logo —
+   `#8FD14F`, the bright lime green, works well as a secondary/background
+   shade if the picker offers one). These are the same two colors used
+   throughout the Admin Dashboard and Agent Portal (`Stylesheet.html`'s
+   `tailwind.config`) — update both places together if the real brand
+   guide has different exact hex values.
 
    If you'd rather hand-build or edit a Form yourself instead, every
    question title it reads is listed in `CONFIG.LINES.MOTOR.FORM_FIELDS`

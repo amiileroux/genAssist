@@ -1,8 +1,8 @@
 <script>
 (function () {
   var LINES = [
-    { key: 'MOTOR', label: 'Motor', categoryHeader: 'Coverage Type' },
-    { key: 'PROPERTY', label: 'Property (House/Commercial)', categoryHeader: 'Occupancy Type' }
+    { key: 'MOTOR', label: '🚗 Motor', categoryHeader: 'Coverage Type' },
+    { key: 'PROPERTY', label: '🏠 Property (House/Commercial)', categoryHeader: 'Occupancy Type' }
   ];
 
   var state = { line: 'MOTOR', records: [], cutoff: null, pendingAction: null };
@@ -17,9 +17,9 @@
 
   function statusColor(status) {
     switch (status) {
-      case 'Ready for Underwriting': return 'bg-emerald-100 text-emerald-800 border-emerald-200';
+      case 'Ready for Underwriting': return 'bg-aral-light/20 text-aral-dark border-aral-light';
       case 'Needs Supplemental Info': return 'bg-amber-100 text-amber-800 border-amber-200';
-      case 'Policy Issued': return 'bg-sky-100 text-sky-800 border-sky-200';
+      case 'Policy Issued': return 'bg-aral-dark/10 text-aral-dark border-aral-dark/40';
       default: return 'bg-rose-100 text-rose-800 border-rose-200';
     }
   }
@@ -36,7 +36,7 @@
       var btn = document.createElement('button');
       btn.textContent = line.label;
       btn.className = 'text-sm font-medium px-3 py-1.5 rounded-md border ' +
-        (active ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-600 border-slate-300 hover:bg-slate-50');
+        (active ? 'bg-aral-dark text-white border-aral-dark' : 'bg-white text-slate-600 border-slate-300 hover:bg-slate-50');
       btn.addEventListener('click', function () {
         if (state.line === line.key) return;
         state.line = line.key;
@@ -108,7 +108,7 @@
       actionsTd.className = 'px-3 py-2 space-x-1 whitespace-nowrap';
       actionsTd.appendChild(actionButton('Flag Incomplete', 'border-rose-300 text-rose-700 hover:bg-rose-50', function () { openNoteModal(r, 'flag'); }));
       actionsTd.appendChild(actionButton('Request Info', 'border-amber-300 text-amber-700 hover:bg-amber-50', function () { openNoteModal(r, 'supplemental'); }));
-      actionsTd.appendChild(actionButton('Approve', 'border-emerald-300 text-emerald-700 hover:bg-emerald-50', function () { approve(r); }));
+      actionsTd.appendChild(actionButton('Approve', 'border-aral-light text-aral-dark hover:bg-aral-light/10', function () { approve(r); }));
       actionsTd.appendChild(actionButton('Mark Issued', 'border-sky-300 text-sky-700 hover:bg-sky-50', function () { openPolicyModal(r); }));
       tr.appendChild(actionsTd);
       body.appendChild(tr);

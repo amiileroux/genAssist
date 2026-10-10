@@ -1,4 +1,23 @@
 <script src="https://cdn.tailwindcss.com"></script>
+<script>
+  // ARAL brand colors, read off the company logo (A. Rauseo & Associates
+  // Limited) - a deep forest green and a bright lime green. If these
+  // don't match the real brand guide hex values, update them here only;
+  // every bg-aral-*/text-aral-*/border-aral-* class across the app
+  // follows automatically.
+  tailwind.config = {
+    theme: {
+      extend: {
+        colors: {
+          aral: {
+            dark: '#14301F',
+            light: '#8FD14F'
+          }
+        }
+      }
+    }
+  };
+</script>
 <style>
   html, body { -webkit-tap-highlight-color: transparent; }
   body {
