@@ -7,7 +7,9 @@ var AGENT_DOC_KEYS = {
   ncdLetter: 'NCD_LETTER',
   claimHistoryLetter: 'CLAIM_HISTORY_LETTER',
   certOfRegistration: 'CERT_OF_REGISTRATION',
-  directorsIdDp: 'DIRECTORS_ID_DP'
+  directorsIdDp: 'DIRECTORS_ID_DP',
+  propertyImage: 'PROPERTY_IMAGE',
+  propertyEvaluationReport: 'PROPERTY_EVALUATION_REPORT'
 };
 
 /** Returns the agent's submissions across BOTH lines, each tagged with `line` so the Agent Portal can re-upload against the right one. */

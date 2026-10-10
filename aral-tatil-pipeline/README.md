@@ -118,32 +118,33 @@ that point.
 |---|---|
 | DP Licence | `Upload DP Licence` (file) |
 | Proof of Address | `Upload Proof Of Address` (file) — "for the location being insured" |
+| Property Image | `Upload Property Image` (file) — an actual photo of the property being insured, distinct from the utility bill used as Proof of Address |
+| Value of Contents | `Value of Contents` (text) — a sum insured figure, needed to produce a quote regardless of occupancy (same reasoning as Value of Vehicle on the Motor line) |
 
 **Conditionally required:**
 
-| Item | Required when | Form source |
-|---|---|---|
-| Directors ID & DP | `Type of Occupancy` is `Commercial` or `Small Business` | `Upload Directors ID & DP` (file) — the form's own label: "For Commercial and Small Businesses ONLY" |
-| Contents for Residential | `Type of Occupancy` is `Residential` *(inferred — see the open question below)* | `Contents for Residential` (text) |
+| Item | Required when | Waived when | Form source |
+|---|---|---|---|
+| Directors ID & DP | `Type of Occupancy` is `Commercial` or `Small Business` | Any other occupancy | `Upload Directors ID & DP` (file) — the form's own label: "For Commercial and Small Businesses ONLY" |
+| Contents for Residential | `Type of Occupancy` is `Residential` *(inferred — the question has no asterisk on the form, but only makes sense for a residential policy)* | Any other occupancy | `Contents for Residential` (text) |
+| Property Evaluation Report | `Type of Occupancy` is anything **except** `Contents ONLY` — a contents-only policy doesn't insure the building, so there's nothing to evaluate | `Contents ONLY` | `Upload Property Evaluation Report` (file) |
 
-> **Open question — not yet implemented.** Section 3 of the Property
-> Form is titled "Coverage Options & Insured Values" and its own
-> subtitle says it "defines scope of coverage and **required sums
-> insured** for proper risk assessment," but no Sum Insured / Building
-> Value field was visible when this checklist was built (the form
-> appeared to go straight to Submit after "Contents for Residential,"
-> including for a Commercial selection). **Confirm with whoever owns
-> the Form** whether there's a Sum Insured question reachable via
-> branching that wasn't seen, and if so add it to
-> `CONFIG.LINES.PROPERTY.FORM_FIELDS` in `Config.gs` and a matching
-> check in `PropertyVettingEngine.gs` — right now that value isn't
-> scored at all.
+> **These three fields (`Value of Contents`, `Upload Property Evaluation
+> Report`, `Upload Property Image`) need to be added to the live Form**
+> with these exact titles before this checklist works — the Form didn't
+> have them when the pipeline was first built (Section 3's own subtitle
+> promised "required sums insured for proper risk assessment," but no
+> such field existed yet). Add `Value of Contents` as a short-answer
+> question near `Contents for Residential` in Section 3, `Upload
+> Property Evaluation Report` as a file upload in the same section, and
+> `Upload Property Image` as a file upload in Section 2 alongside
+> `Upload Proof Of Address`.
 
 Routing (same for both lines):
 
 - **100%** → `Ready for Underwriting`, folder moves to `03_Ready_For_Underwriting`, Underwriting is emailed.
 - **Anything required is missing** → `Incomplete / Flagged`, folder moves to `01_Incomplete_Flagged`, and the agent is emailed the exact missing items.
-- An admin can also manually flag a submission (e.g. for suspected misinformation, an expired permit, or a stale utility bill — none of which either form gives a date to check automatically) from the dashboard regardless of score — that always re-routes to `01` and emails the agent with the admin's note. **Request Supplemental Info** is how `02_Needs_Supplemental_Info` gets used — it's admin-only, not something the automated score routes into on its own (e.g. if TATIL comes back asking for something extra that isn't on the standard checklist, or — for Property — the open Sum Insured question above).
+- An admin can also manually flag a submission (e.g. for suspected misinformation, an expired permit, or a stale utility bill — none of which either form gives a date to check automatically) from the dashboard regardless of score — that always re-routes to `01` and emails the agent with the admin's note. **Request Supplemental Info** is how `02_Needs_Supplemental_Info` gets used — it's admin-only, not something the automated score routes into on its own (e.g. if TATIL comes back asking for something extra that isn't on the standard checklist).
 
 ## Project layout
 
@@ -216,9 +217,12 @@ of who's viewing).
    | `DP_LICENCE_FILE` | Upload DP Licence |
    | `ID_FILE` | Upload ID |
    | `PROOF_OF_ADDRESS_FILE` | Upload Proof Of Address |
+   | `PROPERTY_IMAGE_FILE` | Upload Property Image *(needs adding — see "Vetting rules → Property")* |
    | `DIRECTORS_ID_DP_FILE` | Upload Directors ID & DP |
    | `OCCUPANCY_TYPE` | Type of Occupancy |
    | `RESIDENTIAL_CONTENTS` | Contents for Residential |
+   | `VALUE_OF_CONTENTS` | Value of Contents *(needs adding)* |
+   | `PROPERTY_EVALUATION_REPORT_FILE` | Upload Property Evaluation Report *(needs adding)* |
    | `AGENT_EMAIL` | *(built-in "Email Address" field, see below)* |
 
    `AGENT_EMAIL` isn't a typed question on either form — it's Google's
@@ -303,10 +307,12 @@ Run these from the Apps Script editor's function dropdown when needed:
   `e.namedValues` keyed by that line's exact question titles. If you
   reword a question on either Form, update the matching string in
   `Config.gs` or the trigger will silently treat that field as blank.
-- **The Property checklist is missing a Sum Insured / Building Value
-  check** — see the open question under "Vetting rules → Property"
-  above. That's the one piece of this line that still needs a decision
-  before the checklist can be called complete.
+- **Three Property fields need adding to the live Form** before that
+  checklist actually works — `Value of Contents`, `Upload Property
+  Evaluation Report`, and `Upload Property Image` are all referenced in
+  `Config.gs`/`PropertyVettingEngine.gs` but didn't exist on the Form
+  when this was built. See "Vetting rules → Property" above for exactly
+  where each one goes.
 - **Identity detection depends on the deployment's access setting.**
   With "Anyone within domain" + "Execute as: Me", `Session.getActiveUser()`
   reliably returns the viewer's email, which drives automatic admin/agent

@@ -32,14 +32,17 @@
     ncdLetter: 'NCD Letter',
     claimHistoryLetter: 'Claim History Letter',
     certOfRegistration: 'Certificate of Registration (business)',
-    directorsIdDp: 'Directors ID & DP'
+    directorsIdDp: 'Directors ID & DP',
+    propertyImage: 'Property Image',
+    propertyEvaluationReport: 'Property Evaluation Report'
   };
 
   // Maps a missing-item label from VettingEngine.gs / PropertyVettingEngine.gs
-  // to an uploadable doc key. "Value of Vehicle not provided" and "Contents
-  // for Residential not provided" have no match on purpose - those are
-  // typed answers on the form, not documents, so there's nothing to upload
-  // here for them; they still show as plain missing text, no button.
+  // to an uploadable doc key. "Value of Vehicle not provided", "Value of
+  // Contents not provided" and "Contents for Residential not provided"
+  // have no match on purpose - those are typed answers on the form, not
+  // documents, so there's nothing to upload here for them; they still
+  // show as plain missing text, no button.
   function missingItemToDocKey(item) {
     var lower = item.toLowerCase();
     if (lower.indexOf('dp licence') !== -1) return 'dpLicence';
@@ -49,6 +52,8 @@
     if (lower.indexOf('claim history letter') !== -1) return 'claimHistoryLetter';
     if (lower.indexOf('certificate of registration') !== -1) return 'certOfRegistration';
     if (lower.indexOf('directors id') !== -1) return 'directorsIdDp';
+    if (lower.indexOf('property image') !== -1) return 'propertyImage';
+    if (lower.indexOf('property evaluation report') !== -1) return 'propertyEvaluationReport';
     return null;
   }
 

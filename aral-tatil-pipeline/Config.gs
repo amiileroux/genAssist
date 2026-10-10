@@ -118,11 +118,14 @@ var CONFIG = {
         DP_LICENCE_FILE: 'Upload DP Licence',
         ID_FILE: 'Upload ID',
         PROOF_OF_ADDRESS_FILE: 'Upload Proof Of Address',
+        PROPERTY_IMAGE_FILE: 'Upload Property Image',
         DIRECTORS_ID_DP_FILE: 'Upload Directors ID & DP',
 
         // Section 3: Coverage Options & Insured Values
         OCCUPANCY_TYPE: 'Type of Occupancy',
         RESIDENTIAL_CONTENTS: 'Contents for Residential',
+        VALUE_OF_CONTENTS: 'Value of Contents',
+        PROPERTY_EVALUATION_REPORT_FILE: 'Upload Property Evaluation Report',
 
         // Built-in field Google Forms adds automatically when "Collect
         // email addresses" is turned on - the submitting agent's email.
@@ -133,6 +136,11 @@ var CONFIG = {
       // required (the form's own label: "For Commercial and Small
       // Businesses ONLY").
       BUSINESS_OCCUPANCY_VALUES: ['commercial', 'small business'],
+
+      // "Type of Occupancy" answer that means there's no building being
+      // insured (contents coverage only), so a Property Evaluation
+      // Report doesn't apply.
+      CONTENTS_ONLY_OCCUPANCY_VALUE: 'contents only',
 
       // "Type of Occupancy" answer that means the Contents question applies.
       RESIDENTIAL_OCCUPANCY_VALUE: 'residential'

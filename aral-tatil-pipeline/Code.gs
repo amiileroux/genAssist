@@ -178,6 +178,7 @@ function onPropertyFormSubmit_(e) {
   var agentEmail = get('AGENT_EMAIL');
   var occupancyType = get('OCCUPANCY_TYPE');
   var residentialContents = get('RESIDENTIAL_CONTENTS');
+  var valueOfContents = get('VALUE_OF_CONTENTS');
 
   var aralCode = nextAralCode_('PROPERTY');
   // Client Name isn't on the form - it's set by an admin off the DP Licence upload (see admin_setClientName).
@@ -186,12 +187,17 @@ function onPropertyFormSubmit_(e) {
   var hasDpLicence = attachUploadToFolder_(get('DP_LICENCE_FILE'), folder, 'DP_LICENCE');
   attachUploadToFolder_(get('ID_FILE'), folder, 'ID');
   var hasProofOfAddress = attachUploadToFolder_(get('PROOF_OF_ADDRESS_FILE'), folder, 'PROOF_OF_ADDRESS');
+  var hasPropertyImage = attachUploadToFolder_(get('PROPERTY_IMAGE_FILE'), folder, 'PROPERTY_IMAGE');
   var hasDirectorsIdDp = attachUploadToFolder_(get('DIRECTORS_ID_DP_FILE'), folder, 'DIRECTORS_ID_DP');
+  var hasPropertyEvaluationReport = attachUploadToFolder_(get('PROPERTY_EVALUATION_REPORT_FILE'), folder, 'PROPERTY_EVALUATION_REPORT');
 
   var evaluation = evaluatePropertySubmission_({
     hasDpLicence: hasDpLicence,
     hasProofOfAddress: hasProofOfAddress,
+    hasPropertyImage: hasPropertyImage,
     hasDirectorsIdDp: hasDirectorsIdDp,
+    hasValueOfContents: !!valueOfContents,
+    hasPropertyEvaluationReport: hasPropertyEvaluationReport,
     occupancyType: occupancyType,
     hasResidentialContents: !!residentialContents
   });
@@ -259,7 +265,10 @@ function reevaluateRecord_(record) {
     : evaluatePropertySubmission_({
       hasDpLicence: folderHasDoc_(folder, 'DP_LICENCE'),
       hasProofOfAddress: folderHasDoc_(folder, 'PROOF_OF_ADDRESS'),
+      hasPropertyImage: folderHasDoc_(folder, 'PROPERTY_IMAGE'),
       hasDirectorsIdDp: folderHasDoc_(folder, 'DIRECTORS_ID_DP'),
+      hasValueOfContents: true, // not re-collected on re-upload; only documents can be re-uploaded
+      hasPropertyEvaluationReport: folderHasDoc_(folder, 'PROPERTY_EVALUATION_REPORT'),
       occupancyType: record.occupancyType,
       hasResidentialContents: !!record.residentialContents
     });
