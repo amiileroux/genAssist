@@ -97,6 +97,8 @@ function onMotorFormSubmit_(e) {
 
   var agentName = get('PRODUCER_NAME');
   var agentEmail = get('AGENT_EMAIL');
+  var clientEmail = get('CLIENT_EMAIL');
+  var clientPhone = get('CLIENT_PHONE');
   var coverageType = get('COVERAGE_TYPE');
   var vehicleSpecsText = get('VEHICLE_SPECS');
   var newlyPurchased = get('NEWLY_PURCHASED');
@@ -142,6 +144,8 @@ function onMotorFormSubmit_(e) {
     line: 'MOTOR',
     aralCode: aralCode,
     clientName: '',
+    clientEmail: clientEmail,
+    clientPhone: clientPhone,
     agentName: agentName,
     agentEmail: agentEmail,
     coverageType: coverageType,
@@ -176,6 +180,8 @@ function onPropertyFormSubmit_(e) {
 
   var agentName = get('PRODUCER_NAME');
   var agentEmail = get('AGENT_EMAIL');
+  var clientEmail = get('CLIENT_EMAIL');
+  var clientPhone = get('CLIENT_PHONE');
   var occupancyType = get('OCCUPANCY_TYPE');
   var residentialContents = get('RESIDENTIAL_CONTENTS');
   var valueOfContents = get('VALUE_OF_CONTENTS');
@@ -208,6 +214,8 @@ function onPropertyFormSubmit_(e) {
     line: 'PROPERTY',
     aralCode: aralCode,
     clientName: '',
+    clientEmail: clientEmail,
+    clientPhone: clientPhone,
     agentName: agentName,
     agentEmail: agentEmail,
     occupancyType: occupancyType,

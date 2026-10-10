@@ -33,6 +33,22 @@ var CONFIG = {
   // 24-hour clock, in the script's time zone (see appsscript.json).
   CUTOFF_HOUR: 11,
 
+  // Fixed TATIL payment portal link, sent to the client once ARAL
+  // approves their signed application.
+  TATIL_PAYMENT_URL: 'https://tatil.co.tt/tatil-payments-landing/',
+
+  // Post-approval client workflow stages, tracked in each line's
+  // tracker sheet (POLICY_STAGE column) independently of the KYC-vetting
+  // STATUS/score above. See ClientWorkflow.gs.
+  POLICY_STAGE: {
+    NONE: '',
+    FORMS_SENT: 'Forms Sent - Awaiting Signature',
+    SIGNED_PENDING_APPROVAL: 'Signed - Pending ARAL Approval',
+    APPROVED_PENDING_PAYMENT: 'Approved - Payment Link Sent',
+    PAYMENT_PENDING_CONFIRMATION: 'Payment Submitted - Pending Confirmation',
+    POLICY_CONFIRMED: 'Policy Confirmed - Client Covered'
+  },
+
   LINES: {
     MOTOR: {
       LABEL: 'Motor',
@@ -45,6 +61,10 @@ var CONFIG = {
       TRACKER_SHEET_NAME: 'Motor_Pipeline_Tracker',
       DRIVE_SUBFOLDER_NAME: 'Motor',
       SEQUENCE_PROPERTY_KEY: 'ARAL_SEQUENCE_MOTOR',
+      // Script Property holding the Google Doc ID of the Motor
+      // application template - set this via Project Settings > Script
+      // properties once you've created the template (see README.md).
+      TEMPLATE_DOC_PROPERTY_KEY: 'APPLICATION_TEMPLATE_DOC_ID_MOTOR',
 
       // Exact Google Form question titles this script expects to find in
       // the onFormSubmit event's namedValues map. These match the live
@@ -64,7 +84,8 @@ var CONFIG = {
 
         // Section 2: Proposer / Client Personal Details
         VEHICLE_KEPT_LOCATION: 'Where is the Vehicle being Kept?',
-        CLIENT_CONTACT_INFO: "Client's contact Info (Email & Phone)",
+        CLIENT_EMAIL: 'Client Email',
+        CLIENT_PHONE: 'Client Phone',
         CLIENT_OCCUPATION: "Client's occupation & Employer",
         MARITAL_STATUS: "Client's marital Status",
 
@@ -106,6 +127,10 @@ var CONFIG = {
       TRACKER_SHEET_NAME: 'Property_Pipeline_Tracker',
       DRIVE_SUBFOLDER_NAME: 'Property',
       SEQUENCE_PROPERTY_KEY: 'ARAL_SEQUENCE_PROPERTY',
+      // Script Property holding the Google Doc ID of the Property
+      // application template - set this via Project Settings > Script
+      // properties once you've created the template (see README.md).
+      TEMPLATE_DOC_PROPERTY_KEY: 'APPLICATION_TEMPLATE_DOC_ID_PROPERTY',
 
       // Exact Google Form question titles on the live "ARAL House &
       // Commercial Property Insurance Lead Intake" form.
@@ -113,6 +138,8 @@ var CONFIG = {
         // Section 1: Official / Intermediary Information
         PRODUCER_NAME: 'Producer Name',
         BRANCH: 'Branch',
+        CLIENT_EMAIL: 'Client Email',
+        CLIENT_PHONE: 'Client Phone',
 
         // Section 2: Uploads of Client's Info
         DP_LICENCE_FILE: 'Upload DP Licence',

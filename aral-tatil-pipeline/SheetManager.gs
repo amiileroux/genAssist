@@ -6,31 +6,37 @@
  */
 
 var MOTOR_TRACKER_HEADERS = [
-  'Timestamp', 'ARAL Code', 'Client Name', 'Agent Name', 'Agent Email',
-  'Coverage Type', 'Vehicle Specs', 'Score (%)', 'Status', 'Missing Items',
-  'Drive Folder URL', 'Drive Folder ID', 'Newly Purchased', 'NCD Level',
-  'Claim History', 'New Driver', 'TATIL Policy Number', 'Admin Notes', 'Last Updated'
+  'Timestamp', 'ARAL Code', 'Client Name', 'Client Email', 'Client Phone',
+  'Agent Name', 'Agent Email', 'Coverage Type', 'Vehicle Specs', 'Score (%)',
+  'Status', 'Missing Items', 'Drive Folder URL', 'Drive Folder ID',
+  'Newly Purchased', 'NCD Level', 'Claim History', 'New Driver',
+  'Policy Stage', 'Signed Doc URL', 'Payment Proof URL',
+  'TATIL Policy Number', 'Admin Notes', 'Last Updated'
 ];
 
 var MOTOR_COL = {
-  TIMESTAMP: 1, ARAL_CODE: 2, CLIENT_NAME: 3, AGENT_NAME: 4, AGENT_EMAIL: 5,
-  COVERAGE_TYPE: 6, VEHICLE_SPECS: 7, SCORE: 8, STATUS: 9, MISSING_FIELDS: 10,
-  FOLDER_URL: 11, FOLDER_ID: 12, NEWLY_PURCHASED: 13, NCD_LEVEL: 14,
-  CLAIM_HISTORY: 15, NEW_DRIVER: 16, TATIL_POLICY_NUMBER: 17, ADMIN_NOTES: 18, LAST_UPDATED: 19
+  TIMESTAMP: 1, ARAL_CODE: 2, CLIENT_NAME: 3, CLIENT_EMAIL: 4, CLIENT_PHONE: 5,
+  AGENT_NAME: 6, AGENT_EMAIL: 7, COVERAGE_TYPE: 8, VEHICLE_SPECS: 9, SCORE: 10,
+  STATUS: 11, MISSING_FIELDS: 12, FOLDER_URL: 13, FOLDER_ID: 14,
+  NEWLY_PURCHASED: 15, NCD_LEVEL: 16, CLAIM_HISTORY: 17, NEW_DRIVER: 18,
+  POLICY_STAGE: 19, SIGNED_DOC_URL: 20, PAYMENT_PROOF_URL: 21,
+  TATIL_POLICY_NUMBER: 22, ADMIN_NOTES: 23, LAST_UPDATED: 24
 };
 
 var PROPERTY_TRACKER_HEADERS = [
-  'Timestamp', 'ARAL Code', 'Client Name', 'Agent Name', 'Agent Email',
-  'Occupancy Type', 'Score (%)', 'Status', 'Missing Items',
-  'Drive Folder URL', 'Drive Folder ID', 'Residential Contents',
+  'Timestamp', 'ARAL Code', 'Client Name', 'Client Email', 'Client Phone',
+  'Agent Name', 'Agent Email', 'Occupancy Type', 'Score (%)', 'Status',
+  'Missing Items', 'Drive Folder URL', 'Drive Folder ID', 'Residential Contents',
+  'Policy Stage', 'Signed Doc URL', 'Payment Proof URL',
   'TATIL Policy Number', 'Admin Notes', 'Last Updated'
 ];
 
 var PROPERTY_COL = {
-  TIMESTAMP: 1, ARAL_CODE: 2, CLIENT_NAME: 3, AGENT_NAME: 4, AGENT_EMAIL: 5,
-  OCCUPANCY_TYPE: 6, SCORE: 7, STATUS: 8, MISSING_FIELDS: 9,
-  FOLDER_URL: 10, FOLDER_ID: 11, RESIDENTIAL_CONTENTS: 12,
-  TATIL_POLICY_NUMBER: 13, ADMIN_NOTES: 14, LAST_UPDATED: 15
+  TIMESTAMP: 1, ARAL_CODE: 2, CLIENT_NAME: 3, CLIENT_EMAIL: 4, CLIENT_PHONE: 5,
+  AGENT_NAME: 6, AGENT_EMAIL: 7, OCCUPANCY_TYPE: 8, SCORE: 9, STATUS: 10,
+  MISSING_FIELDS: 11, FOLDER_URL: 12, FOLDER_ID: 13, RESIDENTIAL_CONTENTS: 14,
+  POLICY_STAGE: 15, SIGNED_DOC_URL: 16, PAYMENT_PROOF_URL: 17,
+  TATIL_POLICY_NUMBER: 18, ADMIN_NOTES: 19, LAST_UPDATED: 20
 };
 
 function getTrackerMeta_(lineKey) {
@@ -106,6 +112,8 @@ function appendMotorTrackerRow_(data) {
   row[col.TIMESTAMP - 1] = data.timestamp || new Date();
   row[col.ARAL_CODE - 1] = data.aralCode;
   row[col.CLIENT_NAME - 1] = data.clientName || '';
+  row[col.CLIENT_EMAIL - 1] = data.clientEmail || '';
+  row[col.CLIENT_PHONE - 1] = data.clientPhone || '';
   row[col.AGENT_NAME - 1] = data.agentName || '';
   row[col.AGENT_EMAIL - 1] = data.agentEmail || '';
   row[col.COVERAGE_TYPE - 1] = data.coverageType || '';
@@ -119,6 +127,9 @@ function appendMotorTrackerRow_(data) {
   row[col.NCD_LEVEL - 1] = data.ncdLevel || '';
   row[col.CLAIM_HISTORY - 1] = data.claimHistoryAnswer || '';
   row[col.NEW_DRIVER - 1] = data.newDriver ? 'Yes' : '';
+  row[col.POLICY_STAGE - 1] = CONFIG.POLICY_STAGE.NONE;
+  row[col.SIGNED_DOC_URL - 1] = '';
+  row[col.PAYMENT_PROOF_URL - 1] = '';
   row[col.TATIL_POLICY_NUMBER - 1] = '';
   row[col.ADMIN_NOTES - 1] = '';
   row[col.LAST_UPDATED - 1] = new Date();
@@ -136,6 +147,8 @@ function readMotorRowAsRecord_(rowNum) {
     timestamp: values[col.TIMESTAMP - 1],
     aralCode: values[col.ARAL_CODE - 1],
     clientName: values[col.CLIENT_NAME - 1],
+    clientEmail: values[col.CLIENT_EMAIL - 1],
+    clientPhone: values[col.CLIENT_PHONE - 1],
     agentName: values[col.AGENT_NAME - 1],
     agentEmail: values[col.AGENT_EMAIL - 1],
     coverageType: values[col.COVERAGE_TYPE - 1],
@@ -149,6 +162,9 @@ function readMotorRowAsRecord_(rowNum) {
     ncdLevel: values[col.NCD_LEVEL - 1],
     claimHistoryAnswer: values[col.CLAIM_HISTORY - 1],
     newDriver: values[col.NEW_DRIVER - 1] === 'Yes',
+    policyStage: values[col.POLICY_STAGE - 1],
+    signedDocUrl: values[col.SIGNED_DOC_URL - 1],
+    paymentProofUrl: values[col.PAYMENT_PROOF_URL - 1],
     tatilPolicyNumber: values[col.TATIL_POLICY_NUMBER - 1],
     adminNotes: values[col.ADMIN_NOTES - 1],
     lastUpdated: values[col.LAST_UPDATED - 1]
@@ -164,6 +180,8 @@ function appendPropertyTrackerRow_(data) {
   row[col.TIMESTAMP - 1] = data.timestamp || new Date();
   row[col.ARAL_CODE - 1] = data.aralCode;
   row[col.CLIENT_NAME - 1] = data.clientName || '';
+  row[col.CLIENT_EMAIL - 1] = data.clientEmail || '';
+  row[col.CLIENT_PHONE - 1] = data.clientPhone || '';
   row[col.AGENT_NAME - 1] = data.agentName || '';
   row[col.AGENT_EMAIL - 1] = data.agentEmail || '';
   row[col.OCCUPANCY_TYPE - 1] = data.occupancyType || '';
@@ -173,6 +191,9 @@ function appendPropertyTrackerRow_(data) {
   row[col.FOLDER_URL - 1] = data.folderUrl || '';
   row[col.FOLDER_ID - 1] = data.folderId || '';
   row[col.RESIDENTIAL_CONTENTS - 1] = data.residentialContents || '';
+  row[col.POLICY_STAGE - 1] = CONFIG.POLICY_STAGE.NONE;
+  row[col.SIGNED_DOC_URL - 1] = '';
+  row[col.PAYMENT_PROOF_URL - 1] = '';
   row[col.TATIL_POLICY_NUMBER - 1] = '';
   row[col.ADMIN_NOTES - 1] = '';
   row[col.LAST_UPDATED - 1] = new Date();
@@ -190,6 +211,8 @@ function readPropertyRowAsRecord_(rowNum) {
     timestamp: values[col.TIMESTAMP - 1],
     aralCode: values[col.ARAL_CODE - 1],
     clientName: values[col.CLIENT_NAME - 1],
+    clientEmail: values[col.CLIENT_EMAIL - 1],
+    clientPhone: values[col.CLIENT_PHONE - 1],
     agentName: values[col.AGENT_NAME - 1],
     agentEmail: values[col.AGENT_EMAIL - 1],
     occupancyType: values[col.OCCUPANCY_TYPE - 1],
@@ -199,6 +222,9 @@ function readPropertyRowAsRecord_(rowNum) {
     folderUrl: values[col.FOLDER_URL - 1],
     folderId: values[col.FOLDER_ID - 1],
     residentialContents: values[col.RESIDENTIAL_CONTENTS - 1],
+    policyStage: values[col.POLICY_STAGE - 1],
+    signedDocUrl: values[col.SIGNED_DOC_URL - 1],
+    paymentProofUrl: values[col.PAYMENT_PROOF_URL - 1],
     tatilPolicyNumber: values[col.TATIL_POLICY_NUMBER - 1],
     adminNotes: values[col.ADMIN_NOTES - 1],
     lastUpdated: values[col.LAST_UPDATED - 1]

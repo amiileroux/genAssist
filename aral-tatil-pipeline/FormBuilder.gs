@@ -13,6 +13,15 @@
  * existing welcome-page checklist) so agents can jump to the right part
  * of a long form faster while filling it out.
  *
+ * One question per page: every question is its own page break (see the
+ * add*_ helpers below), so the form plays out one simple ask at a time
+ * with a Next button, not a long scroll - plus a progress bar since
+ * that makes for a lot of pages. For the full chat-bubble look on top
+ * of that, Google Forms also has a "Conversational mode" toggle under
+ * each form's own Settings > General - that one isn't exposed through
+ * Apps Script's Forms service, so it's a one-click manual step per form
+ * after creation, same as the theme/logo below.
+ *
  * Known gaps versus the hand-built forms this was reconstructed from:
  *  - No header/logo image, and no brand color theme. Google Forms' API
  *    has no endpoint for setting a form's theme/header image or colors
@@ -32,6 +41,14 @@
  */
 
 // ---- Generic item helpers ----
+//
+// Every question gets its own page break before it, so the form plays
+// out one question at a time ("Next" to advance) instead of a long
+// scroll - each add*_ call below is a single page. addSection_ is the
+// one exception: it's a page of its own too, but holds only the section
+// title + "why we need this" context, with no question on it, so that
+// orientation text is shown once per section rather than repeated on
+// every question's page.
 
 function addSection_(form, title, whyText) {
   var item = form.addPageBreakItem().setTitle(title);
@@ -41,6 +58,7 @@ function addSection_(form, title, whyText) {
 
 function addShortAnswer_(form, title, opts) {
   opts = opts || {};
+  form.addPageBreakItem();
   var item = form.addTextItem().setTitle(title);
   if (opts.helpText) item.setHelpText(opts.helpText);
   item.setRequired(!!opts.required);
@@ -49,6 +67,7 @@ function addShortAnswer_(form, title, opts) {
 
 function addMultipleChoice_(form, title, choices, opts) {
   opts = opts || {};
+  form.addPageBreakItem();
   var item = form.addMultipleChoiceItem().setTitle(title);
   item.setChoiceValues(choices);
   if (opts.other) item.showOtherOption(true);
@@ -59,6 +78,7 @@ function addMultipleChoice_(form, title, choices, opts) {
 
 function addCheckboxes_(form, title, choices, opts) {
   opts = opts || {};
+  form.addPageBreakItem();
   var item = form.addCheckboxItem().setTitle(title);
   item.setChoiceValues(choices);
   if (opts.other) item.showOtherOption(true);
@@ -69,6 +89,7 @@ function addCheckboxes_(form, title, choices, opts) {
 
 function addFileUpload_(form, title, opts) {
   opts = opts || {};
+  form.addPageBreakItem();
   var item = form.addFileUploadItem().setTitle(title);
   if (opts.helpText) item.setHelpText(opts.helpText);
   item.setRequired(!!opts.required);
@@ -109,6 +130,7 @@ function createMotorForm() {
   var fields = CONFIG.LINES.MOTOR.FORM_FIELDS;
   var form = FormApp.create('ARAL Motor Insurance Lead Intake');
   form.setCollectEmail(true); // this is where AGENT_EMAIL ('Email Address') comes from
+  form.setProgressBar(true); // helpful since one-question-per-page makes for a lot of pages
 
   form.setDescription(
     'Hey Aral Agent! 🚀 Before we dive in, please have the following documents.\n\n' +
@@ -156,7 +178,8 @@ function createMotorForm() {
     required: true, other: true,
     helpText: 'Example: (Kept in locked garage, Open garage ect.) *Note* Your claim may be voided if the vehicle is not kept at this selected location.'
   });
-  addShortAnswer_(form, fields.CLIENT_CONTACT_INFO, { required: true, helpText: 'Example: nisha@gmail.com | 396-8585' });
+  addShortAnswer_(form, fields.CLIENT_EMAIL, { required: true, helpText: 'Where we send policy updates, approvals, and the payment link. Example: nisha@gmail.com' });
+  addShortAnswer_(form, fields.CLIENT_PHONE, { required: true, helpText: 'Example: 396-8585' });
   addShortAnswer_(form, fields.CLIENT_OCCUPATION, { required: true, helpText: 'Example: Estate Corporal, WASA (662-1000)' });
   addMultipleChoice_(form, fields.MARITAL_STATUS, ['Married', 'Single', 'Widowed', 'Divorced'], {});
 
@@ -229,6 +252,7 @@ function createPropertyForm() {
   var fields = CONFIG.LINES.PROPERTY.FORM_FIELDS;
   var form = FormApp.create('ARAL House & Commercial Property Insurance Lead Intake');
   form.setCollectEmail(true); // this is where AGENT_EMAIL ('Email Address') comes from
+  form.setProgressBar(true); // helpful since one-question-per-page makes for a lot of pages
 
   // Placeholder - the real intro copy for this form wasn't available when this was written; replace with your actual wording.
   form.setDescription(
@@ -243,6 +267,8 @@ function createPropertyForm() {
     'El Turo (Arturo Rauseo)',
     'A. Rauseo Associates Ltd Agency'
   ], { required: true, other: true });
+  addShortAnswer_(form, fields.CLIENT_EMAIL, { required: true, helpText: 'Where we send policy updates, approvals, and the payment link. Example: nisha@gmail.com' });
+  addShortAnswer_(form, fields.CLIENT_PHONE, { required: true, helpText: 'Example: 396-8585' });
 
   // Placeholder subtitle - the original wasn't visible on screen when this was written; reused from the Motor form's equivalent section.
   addSection_(form, "📎 Section 2: Uploads of Client's Info",
