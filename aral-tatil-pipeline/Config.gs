@@ -33,26 +33,54 @@ var CONFIG = {
   CUTOFF_HOUR: 11,
 
   // Exact Google Form question titles this script expects to find in
-  // the onFormSubmit event's namedValues map.
+  // the onFormSubmit event's namedValues map. These match the live
+  // "ARAL Motor Insurance Lead Intake" form.
   FORM_FIELDS: {
-    CLIENT_NAME: 'Client Full Name',
-    AGENT_NAME: 'Agent Name',
-    AGENT_EMAIL: 'Agent Email',
-    POLICY_TYPE: 'Policy Type',
-    VEHICLE_REG: 'Vehicle Registration Number',
-    DRIVERS_PERMIT_FILE: "Upload: Driver's Permit",
-    DRIVERS_PERMIT_EXPIRY: "Driver's Permit Expiry Date",
-    VEHICLE_CERT_FILE: 'Upload: Vehicle Certified Copy',
-    VALUATION_FILE: 'Upload: Vehicle Valuation (Comprehensive only)',
-    UTILITY_BILL_FILE: 'Upload: Proof of Address / Utility Bill',
-    UTILITY_BILL_DATE: 'Utility Bill Date'
+    // Section 1: Official / Intermediary Information
+    PRODUCER_NAME: 'Producer Name',
+    BRANCH: 'Branch',
+
+    // Section 1: Uploads of Client's Info
+    DP_LICENCE_FILE: 'Upload DP Licence',
+    ID_FILE: 'Upload ID',
+    CERT_OF_REGISTRATION_FILE: 'Certificate of Registration',
+    VEHICLE_INVOICE_FILE: 'Upload Vehicle Invoice',
+    CERTIFIED_COPY_FILE: 'Upload Certified Copy',
+    PROOF_OF_ADDRESS_FILE: 'Proof Of Address',
+
+    // Section 2: Proposer / Client Personal Details
+    VEHICLE_KEPT_LOCATION: 'Where is the Vehicle being Kept?',
+    CLIENT_CONTACT_INFO: "Client's contact Info (Email & Phone)",
+    CLIENT_OCCUPATION: "Client's occupation & Employer",
+    MARITAL_STATUS: "Client's marital Status",
+
+    // Section 3: Coverage & Vehicle Info
+    NEWLY_PURCHASED: 'Is this vehicle newly purchased?',
+    HAS_NCD_LETTER_Q: 'Do you have an NCD Letter?',
+    NCD_LETTER_FILE: 'NCD Letter',
+    NCD_LEVEL: "How much is your client's NCD (No Claim Discount)",
+    COVERAGE_TYPE: 'Coverage Type',
+    VALUE_OF_VEHICLE: 'Value Of vehicle',
+    VEHICLE_SPECS: 'Vehicle Specs (Reg #, Make/Model, Year, CC)',
+
+    // Section 5: Extensions & Commercial Check
+    CLAIM_HISTORY_Q: 'Do you have a Claim History',
+    CLAIM_HISTORY_LETTER_FILE: 'Claim History Letter',
+    COMMERCIAL_USE_Q: 'Is this vehicle used for Commercial Purposes?',
+
+    // Built-in field Google Forms adds automatically when "Collect email
+    // addresses" is turned on — this is the submitting agent's email.
+    AGENT_EMAIL: 'Email Address'
   },
 
-  // Substrings (case-insensitive) that mark a "Policy Type" answer as
-  // Comprehensive, which is what makes the valuation document mandatory.
-  COMPREHENSIVE_VALUES: ['comprehensive'],
+  // "How much is your client's NCD" answer that means no discount/history
+  // exists at all, so no NCD Letter is expected.
+  NCD_NONE_VALUE: 'NONE',
 
-  UTILITY_BILL_MAX_AGE_DAYS: 90,
+  // Substrings (case-insensitive) in the "Do you have an NCD Letter?"
+  // answer that mean the client is a first-time/new driver, who by
+  // definition has no NCD or claims history yet - exempts both letters.
+  NEW_DRIVER_MARKERS: ['first-time', 'new driver'],
 
   PROPERTY_KEYS: {
     ROOT_FOLDER_ID: 'ROOT_FOLDER_ID',

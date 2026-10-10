@@ -49,13 +49,23 @@ function getSubfolderForStatus_(statusKey) {
   return getOrCreateRootStructure_().subfolders[statusKey];
 }
 
-function createClientFolder_(aralCode, clientName, policyType) {
+function createClientFolder_(aralCode, clientName, coverageType) {
   var structure = getOrCreateRootStructure_();
-  var safeClient = (clientName || 'Unknown_Client').replace(/[\\\/:*?"<>|]/g, '_').trim();
-  var safePolicy = (policyType || 'Motor').replace(/[\\\/:*?"<>|]/g, '_').trim();
-  var folderName = aralCode + '_' + safeClient + '_' + safePolicy;
+  // Client Name isn't collected on the form (it's read off the uploaded DP
+  // Licence by whoever reviews it), so a fresh submission is unnamed until
+  // an admin sets it via the dashboard - see AdminController.admin_setClientName.
+  var safeClient = (clientName || 'Pending-Name').replace(/[\\\/:*?"<>|]/g, '_').trim();
+  var safeCoverage = (coverageType || 'Motor').replace(/[\\\/:*?"<>|]/g, '_').trim();
+  var folderName = aralCode + '_' + safeClient + '_' + safeCoverage;
   // New folders start in Incomplete; the vetting engine moves them on immediately after.
   return structure.subfolders.INCOMPLETE.createFolder(folderName);
+}
+
+/** Renames a client folder in place, keeping its ARAL code prefix. Used when an admin sets the client's name. */
+function renameClientFolder_(folder, aralCode, newClientName, coverageType) {
+  var safeClient = (newClientName || 'Pending-Name').replace(/[\\\/:*?"<>|]/g, '_').trim();
+  var safeCoverage = (coverageType || 'Motor').replace(/[\\\/:*?"<>|]/g, '_').trim();
+  folder.setName(aralCode + '_' + safeClient + '_' + safeCoverage);
 }
 
 function moveFolderToStatus_(folder, statusKey) {

@@ -1,10 +1,12 @@
 /** Server functions called from the Agent Portal (AgentScript.html) via google.script.run. */
 
 var AGENT_DOC_KEYS = {
-  permit: 'DRIVERS_PERMIT',
-  vehicleCert: 'VEHICLE_CERT',
-  valuation: 'VALUATION',
-  utilityBill: 'UTILITY_BILL'
+  dpLicence: 'DP_LICENCE',
+  certifiedCopy: 'CERTIFIED_COPY',
+  proofOfAddress: 'PROOF_OF_ADDRESS',
+  ncdLetter: 'NCD_LETTER',
+  claimHistoryLetter: 'CLAIM_HISTORY_LETTER',
+  certOfRegistration: 'CERT_OF_REGISTRATION'
 };
 
 function agent_getMySubmissions(agentEmail) {
@@ -15,7 +17,7 @@ function agent_getMySubmissions(agentEmail) {
       return {
         aralCode: r.aralCode,
         clientName: r.clientName,
-        policyType: r.policyType,
+        coverageType: r.coverageType,
         score: r.score,
         status: r.status,
         missing: r.missing ? String(r.missing).split('; ').filter(Boolean) : [],

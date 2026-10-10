@@ -73,49 +73,65 @@ function onFormSubmitTrigger(e) {
     return val ? val[0] : '';
   };
 
-  var clientName = get('CLIENT_NAME');
-  var agentName = get('AGENT_NAME');
+  var agentName = get('PRODUCER_NAME');
   var agentEmail = get('AGENT_EMAIL');
-  var policyType = get('POLICY_TYPE');
-  var vehicleReg = get('VEHICLE_REG');
+  var coverageType = get('COVERAGE_TYPE');
+  var vehicleSpecsText = get('VEHICLE_SPECS');
+  var newlyPurchased = get('NEWLY_PURCHASED');
+  var ncdLevel = get('NCD_LEVEL');
+  var hasNcdLetterAnswer = get('HAS_NCD_LETTER_Q');
+  var claimHistoryAnswer = get('CLAIM_HISTORY_Q');
+  var valueOfVehicle = get('VALUE_OF_VEHICLE');
+
+  var newDriver = isNewDriver_(hasNcdLetterAnswer);
 
   var aralCode = nextAralCode_();
-  var folder = createClientFolder_(aralCode, clientName, policyType);
+  // Client Name isn't on the form - it's set by an admin off the DP Licence upload (see admin_setClientName).
+  var folder = createClientFolder_(aralCode, '', coverageType);
 
-  var hasPermit = attachUploadToFolder_(get('DRIVERS_PERMIT_FILE'), folder, 'DRIVERS_PERMIT');
-  var hasVehicleCert = attachUploadToFolder_(get('VEHICLE_CERT_FILE'), folder, 'VEHICLE_CERT');
-  var hasValuation = attachUploadToFolder_(get('VALUATION_FILE'), folder, 'VALUATION');
-  var hasUtilityBill = attachUploadToFolder_(get('UTILITY_BILL_FILE'), folder, 'UTILITY_BILL');
-
-  var permitExpiry = parseFormDate_(get('DRIVERS_PERMIT_EXPIRY'));
-  var utilityBillDate = parseFormDate_(get('UTILITY_BILL_DATE'));
+  var hasDpLicence = attachUploadToFolder_(get('DP_LICENCE_FILE'), folder, 'DP_LICENCE');
+  attachUploadToFolder_(get('ID_FILE'), folder, 'ID');
+  var hasCertOfRegistration = attachUploadToFolder_(get('CERT_OF_REGISTRATION_FILE'), folder, 'CERT_OF_REGISTRATION');
+  attachUploadToFolder_(get('VEHICLE_INVOICE_FILE'), folder, 'VEHICLE_INVOICE');
+  var hasCertifiedCopy = attachUploadToFolder_(get('CERTIFIED_COPY_FILE'), folder, 'CERTIFIED_COPY');
+  var hasProofOfAddress = attachUploadToFolder_(get('PROOF_OF_ADDRESS_FILE'), folder, 'PROOF_OF_ADDRESS');
+  var hasNcdLetterFile = attachUploadToFolder_(get('NCD_LETTER_FILE'), folder, 'NCD_LETTER');
+  var hasClaimHistoryLetterFile = attachUploadToFolder_(get('CLAIM_HISTORY_LETTER_FILE'), folder, 'CLAIM_HISTORY_LETTER');
 
   var evaluation = evaluateSubmission_({
-    policyType: policyType,
-    hasPermit: hasPermit,
-    permitExpiry: permitExpiry,
-    hasVehicleCert: hasVehicleCert,
-    hasValuation: hasValuation,
-    hasUtilityBill: hasUtilityBill,
-    utilityBillDate: utilityBillDate
+    hasDpLicence: hasDpLicence,
+    hasCertifiedCopy: hasCertifiedCopy,
+    hasVehicleSpecsText: !!vehicleSpecsText,
+    hasProofOfAddress: hasProofOfAddress,
+    hasValueOfVehicle: !!valueOfVehicle,
+    ncdLevel: ncdLevel,
+    newDriver: newDriver,
+    hasNcdLetterFile: hasNcdLetterFile,
+    claimHistoryAnswer: claimHistoryAnswer,
+    hasClaimHistoryLetterFile: hasClaimHistoryLetterFile,
+    coverageType: coverageType,
+    hasCertOfRegistration: hasCertOfRegistration,
+    newlyPurchased: newlyPurchased
   });
 
   moveFolderToStatus_(folder, evaluation.statusKey);
 
   var record = {
     aralCode: aralCode,
-    clientName: clientName,
+    clientName: '',
     agentName: agentName,
     agentEmail: agentEmail,
-    policyType: policyType,
-    vehicleReg: vehicleReg,
+    coverageType: coverageType,
+    vehicleSpecs: vehicleSpecsText,
     score: evaluation.score,
     status: CONFIG.STATUS[evaluation.statusKey],
     missing: evaluation.missing,
     folderUrl: folder.getUrl(),
     folderId: folder.getId(),
-    permitExpiry: permitExpiry,
-    utilityBillDate: utilityBillDate
+    newlyPurchased: newlyPurchased,
+    ncdLevel: ncdLevel,
+    claimHistoryAnswer: claimHistoryAnswer,
+    newDriver: newDriver
   };
 
   appendTrackerRow_(record);
@@ -127,28 +143,14 @@ function onFormSubmitTrigger(e) {
   }
 }
 
-/** Parses Google Forms date answers, which can arrive as ISO or as DD/MM/YYYY depending on locale. */
-function parseFormDate_(raw) {
-  if (!raw) return null;
-  var direct = new Date(raw);
-  if (!isNaN(direct.getTime())) return direct;
-
-  var dmy = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(String(raw).trim());
-  if (dmy) {
-    var parsed = new Date(parseInt(dmy[3], 10), parseInt(dmy[2], 10) - 1, parseInt(dmy[1], 10));
-    if (!isNaN(parsed.getTime())) return parsed;
-  }
-  return null;
-}
-
 /** Re-runs the vetting engine over every tracker row. Handy after editing CONFIG or fixing a misconfigured Form. */
 function reprocessAllRows() {
   getAllRecords_().forEach(function (record) { reevaluateRecord_(record); });
 }
 
 /**
- * Re-checks a tracker row's Drive folder contents + stored dates and
- * updates score/status/folder placement accordingly. Used both by
+ * Re-checks a tracker row's Drive folder contents and updates
+ * score/status/folder placement accordingly. Used both by
  * reprocessAllRows() and after an agent re-uploads a document.
  */
 function reevaluateRecord_(record) {
@@ -157,13 +159,19 @@ function reevaluateRecord_(record) {
   if (!folder) return record;
 
   var evaluation = evaluateSubmission_({
-    policyType: record.policyType,
-    hasPermit: folderHasDoc_(folder, 'DRIVERS_PERMIT'),
-    permitExpiry: record.permitExpiry ? new Date(record.permitExpiry) : null,
-    hasVehicleCert: folderHasDoc_(folder, 'VEHICLE_CERT'),
-    hasValuation: folderHasDoc_(folder, 'VALUATION'),
-    hasUtilityBill: folderHasDoc_(folder, 'UTILITY_BILL'),
-    utilityBillDate: record.utilityBillDate ? new Date(record.utilityBillDate) : null
+    hasDpLicence: folderHasDoc_(folder, 'DP_LICENCE'),
+    hasCertifiedCopy: folderHasDoc_(folder, 'CERTIFIED_COPY'),
+    hasVehicleSpecsText: !!record.vehicleSpecs,
+    hasProofOfAddress: folderHasDoc_(folder, 'PROOF_OF_ADDRESS'),
+    hasValueOfVehicle: true, // not re-collected on re-upload; only documents can be re-uploaded
+    ncdLevel: record.ncdLevel,
+    newDriver: record.newDriver,
+    hasNcdLetterFile: folderHasDoc_(folder, 'NCD_LETTER'),
+    claimHistoryAnswer: record.claimHistoryAnswer,
+    hasClaimHistoryLetterFile: folderHasDoc_(folder, 'CLAIM_HISTORY_LETTER'),
+    coverageType: record.coverageType,
+    hasCertOfRegistration: folderHasDoc_(folder, 'CERT_OF_REGISTRATION'),
+    newlyPurchased: record.newlyPurchased
   });
 
   moveFolderToStatus_(folder, evaluation.statusKey);

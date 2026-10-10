@@ -15,13 +15,19 @@ function toRowView_(r) {
     clientName: r.clientName,
     agentName: r.agentName,
     agentEmail: r.agentEmail,
-    policyType: r.policyType,
-    vehicleReg: r.vehicleReg,
+    coverageType: r.coverageType,
+    vehicleSpecs: r.vehicleSpecs,
     score: r.score,
     status: r.status,
     missing: r.missing ? String(r.missing).split('; ').filter(Boolean) : [],
     folderUrl: r.folderUrl,
     tatilPolicyNumber: r.tatilPolicyNumber,
+    // Not auto-scored - shown so an admin can judge whether Certificate of
+    // Registration is needed (see VettingEngine.gs for why).
+    newlyPurchased: r.newlyPurchased,
+    ncdLevel: r.ncdLevel,
+    claimHistoryAnswer: r.claimHistoryAnswer,
+    newDriver: r.newDriver,
     submittedAt: r.timestamp instanceof Date ? r.timestamp.toISOString() : String(r.timestamp || ''),
     lastUpdated: r.lastUpdated instanceof Date ? r.lastUpdated.toISOString() : String(r.lastUpdated || '')
   };
@@ -52,6 +58,25 @@ function admin_flagIncomplete(aralCode, note) {
   var updated = readRowAsRecord_(rowNum);
   updated.missing = missingList;
   notifyAgentCustomFlag_(updated, note || 'Please review and correct the flagged items.');
+  return admin_getDashboardData();
+}
+
+/**
+ * Sets (or corrects) the client's name - read off the uploaded DP Licence,
+ * since the form itself doesn't collect a name. Also renames the Drive
+ * folder so it stays searchable by client name.
+ */
+function admin_setClientName(aralCode, clientName) {
+  assertIsAdmin_();
+  if (!clientName) throw new Error('Client name cannot be empty.');
+  var rowNum = findRowByAralCode_(aralCode);
+  if (!rowNum) throw new Error('Submission not found: ' + aralCode);
+  var record = readRowAsRecord_(rowNum);
+
+  var folder = safeGetFolder_(record.folderId);
+  if (folder) renameClientFolder_(folder, aralCode, clientName, record.coverageType);
+
+  updateRowFields_(rowNum, { CLIENT_NAME: clientName });
   return admin_getDashboardData();
 }
 

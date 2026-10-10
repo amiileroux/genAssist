@@ -51,16 +51,26 @@
 
     records.forEach(function (r) {
       var tr = document.createElement('tr');
-      tr.innerHTML =
-        '<td class="px-3 py-2"><div class="font-medium text-slate-900">' + escapeHtml(r.clientName) + '</div>' +
-        '<div class="text-xs text-slate-400">' + escapeHtml(r.aralCode) + '</div></td>' +
+      var nameCellTd = document.createElement('td');
+      nameCellTd.className = 'px-3 py-2';
+      var nameHasValue = !!(r.clientName && r.clientName.trim());
+      nameCellTd.innerHTML =
+        '<div class="font-medium ' + (nameHasValue ? 'text-slate-900' : 'text-amber-600 italic') + '">' +
+        (nameHasValue ? escapeHtml(r.clientName) : 'Not set - read off DP Licence') + '</div>' +
+        '<div class="text-xs text-slate-400">' + escapeHtml(r.aralCode) + '</div>' +
+        (r.newlyPurchased ? '<div class="text-xs text-slate-400">Newly purchased: ' + escapeHtml(r.newlyPurchased) + '</div>' : '');
+      var nameBtn = actionButton(nameHasValue ? 'Edit name' : 'Set name', 'border-slate-300 text-slate-600 hover:bg-slate-50 mt-1', function () { setClientName(r); });
+      nameCellTd.appendChild(nameBtn);
+      tr.appendChild(nameCellTd);
+
+      tr.insertAdjacentHTML('beforeend',
         '<td class="px-3 py-2">' + escapeHtml(r.agentName) + '</td>' +
-        '<td class="px-3 py-2">' + escapeHtml(r.policyType) + '</td>' +
+        '<td class="px-3 py-2">' + escapeHtml(r.coverageType) + '</td>' +
         '<td class="px-3 py-2 whitespace-nowrap text-slate-500">' + fmtDate(r.submittedAt) + '</td>' +
         '<td class="px-3 py-2"><span class="font-semibold">' + r.score + '%</span></td>' +
         '<td class="px-3 py-2"><span class="inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium ' + statusColor(r.status) + '">' + escapeHtml(r.status) + '</span>' +
         (r.missing && r.missing.length ? '<div class="text-xs text-rose-500 mt-1">' + escapeHtml(r.missing.join(', ')) + '</div>' : '') + '</td>' +
-        '<td class="px-3 py-2">' + (r.folderUrl ? '<a href="' + r.folderUrl + '" target="_blank" class="text-sky-600 underline text-xs">Open folder</a>' : '') + '</td>';
+        '<td class="px-3 py-2">' + (r.folderUrl ? '<a href="' + r.folderUrl + '" target="_blank" class="text-sky-600 underline text-xs">Open folder</a>' : '') + '</td>');
 
       var actionsTd = document.createElement('td');
       actionsTd.className = 'px-3 py-2 space-x-1 whitespace-nowrap';
@@ -71,6 +81,14 @@
       tr.appendChild(actionsTd);
       body.appendChild(tr);
     });
+  }
+
+  function setClientName(record) {
+    var name = prompt("Client's name, exactly as it appears on their DP Licence:", record.clientName || '');
+    if (name === null) return;
+    name = name.trim();
+    if (!name) return;
+    google.script.run.withSuccessHandler(onDashboardUpdated).withFailureHandler(handleError).admin_setClientName(record.aralCode, name);
   }
 
   function handleError(err) {

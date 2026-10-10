@@ -20,22 +20,27 @@
   }
 
   var DOC_LABELS = {
-    permit: "Driver's Permit",
-    vehicleCert: 'Vehicle Certified Copy',
-    valuation: 'Vehicle Valuation',
-    utilityBill: 'Utility Bill'
+    dpLicence: 'DP Licence',
+    certifiedCopy: 'Certified Copy',
+    proofOfAddress: 'Proof of Address',
+    ncdLetter: 'NCD Letter',
+    claimHistoryLetter: 'Claim History Letter',
+    certOfRegistration: 'Certificate of Registration (business)'
   };
 
-  function missingToDocKeys(missing) {
-    var keys = [];
-    (missing || []).forEach(function (m) {
-      var lower = m.toLowerCase();
-      if (lower.indexOf('permit') !== -1) keys.push('permit');
-      else if (lower.indexOf('certified') !== -1) keys.push('vehicleCert');
-      else if (lower.indexOf('valuation') !== -1) keys.push('valuation');
-      else if (lower.indexOf('utility') !== -1 || lower.indexOf('address') !== -1) keys.push('utilityBill');
-    });
-    return keys;
+  // Maps a missing-item label from VettingEngine.gs to an uploadable doc
+  // key. "Value of Vehicle not provided" has no match on purpose - that's
+  // a typed amount on the form, not a document, so there's nothing to
+  // upload here for it; it still shows as plain missing text, no button.
+  function missingItemToDocKey(item) {
+    var lower = item.toLowerCase();
+    if (lower.indexOf('dp licence') !== -1) return 'dpLicence';
+    if (lower.indexOf('certified copy') !== -1) return 'certifiedCopy';
+    if (lower.indexOf('proof of address') !== -1) return 'proofOfAddress';
+    if (lower.indexOf('ncd letter') !== -1) return 'ncdLetter';
+    if (lower.indexOf('claim history letter') !== -1) return 'claimHistoryLetter';
+    if (lower.indexOf('certificate of registration') !== -1) return 'certOfRegistration';
+    return null;
   }
 
   function renderList() {
@@ -44,29 +49,31 @@
     $('agent-empty').classList.toggle('hidden', state.records.length > 0);
 
     state.records.forEach(function (r) {
-      var docKeys = missingToDocKeys(r.missing);
       var card = document.createElement('div');
       card.className = 'bg-white border border-slate-200 rounded-lg p-4 shadow-sm';
       card.innerHTML =
         '<div class="flex items-start justify-between gap-2">' +
-          '<div><div class="font-semibold text-slate-900">' + escapeHtml(r.clientName) + '</div>' +
-          '<div class="text-xs text-slate-400">' + escapeHtml(r.aralCode) + ' &middot; ' + escapeHtml(r.policyType) + '</div></div>' +
+          '<div><div class="font-semibold text-slate-900">' + escapeHtml(r.clientName || 'Unnamed client') + '</div>' +
+          '<div class="text-xs text-slate-400">' + escapeHtml(r.aralCode) + ' &middot; ' + escapeHtml(r.coverageType) + '</div></div>' +
           '<span class="text-xs font-medium px-2 py-1 rounded-full ' + statusColor(r.status) + '">' + r.score + '%</span>' +
         '</div>' +
         '<div class="mt-2 text-xs font-medium ' + statusColor(r.status) + ' inline-block px-2 py-0.5 rounded-full">' + escapeHtml(r.status) + '</div>';
 
-      if (docKeys.length) {
+      if (r.missing && r.missing.length) {
         var list = document.createElement('div');
         list.className = 'mt-3 space-y-2';
-        docKeys.forEach(function (docKey) {
+        r.missing.forEach(function (item) {
+          var docKey = missingItemToDocKey(item);
           var row = document.createElement('div');
           row.className = 'flex items-center justify-between text-sm bg-rose-50 border border-rose-100 rounded-md px-2 py-1.5';
-          row.innerHTML = '<span class="text-rose-700">' + DOC_LABELS[docKey] + ' missing</span>';
-          var btn = document.createElement('button');
-          btn.textContent = 'Upload';
-          btn.className = 'text-xs font-medium px-2 py-1 rounded-md bg-rose-600 text-white';
-          btn.addEventListener('click', function () { startUpload(r.aralCode, docKey); });
-          row.appendChild(btn);
+          row.innerHTML = '<span class="text-rose-700">' + escapeHtml(docKey ? DOC_LABELS[docKey] + ' missing' : item) + '</span>';
+          if (docKey) {
+            var btn = document.createElement('button');
+            btn.textContent = 'Upload';
+            btn.className = 'text-xs font-medium px-2 py-1 rounded-md bg-rose-600 text-white';
+            btn.addEventListener('click', function () { startUpload(r.aralCode, docKey); });
+            row.appendChild(btn);
+          }
           list.appendChild(row);
         });
         card.appendChild(list);

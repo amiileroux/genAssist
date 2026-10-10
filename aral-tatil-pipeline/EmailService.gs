@@ -1,12 +1,17 @@
 /** Agent/underwriting notification emails. Uses MailApp so it works without any extra Gmail setup. */
 
+/** Client Name isn't collected on the form - it's set by an admin later - so a fresh submission usually has none yet. */
+function clientLabel_(record) {
+  return record.clientName && String(record.clientName).trim() ? record.clientName : 'this client';
+}
+
 function notifyAgentMissingFields_(record) {
   if (!record.agentEmail) return;
-  var subject = '[ARAL] Action needed on ' + record.aralCode + ' - ' + record.clientName;
+  var subject = '[ARAL] Action needed on ' + record.aralCode + ' - ' + clientLabel_(record);
   var body = [
     'Hi ' + (record.agentName || 'there') + ',',
     '',
-    'The submission for ' + record.clientName + ' (' + record.aralCode + ') is missing the following before it can go to TATIL Underwriting:',
+    'The submission for ' + clientLabel_(record) + ' (' + record.aralCode + ') is missing the following before it can go to TATIL Underwriting:',
     '',
     (record.missing || []).map(function (m) { return '- ' + m; }).join('\n'),
     '',
@@ -19,11 +24,11 @@ function notifyAgentMissingFields_(record) {
 
 function notifyAgentCustomFlag_(record, note) {
   if (!record.agentEmail) return;
-  var subject = '[ARAL] Submission flagged - ' + record.aralCode + ' - ' + record.clientName;
+  var subject = '[ARAL] Submission flagged - ' + record.aralCode + ' - ' + clientLabel_(record);
   var body = [
     'Hi ' + (record.agentName || 'there') + ',',
     '',
-    'An admin has flagged the submission for ' + record.clientName + ' (' + record.aralCode + '):',
+    'An admin has flagged the submission for ' + clientLabel_(record) + ' (' + record.aralCode + '):',
     '',
     note,
     '',
@@ -35,9 +40,9 @@ function notifyAgentCustomFlag_(record, note) {
 function notifyUnderwritingReady_(record) {
   var to = getUnderwritingEmail_();
   if (!to) return;
-  var subject = '[ARAL] Ready for Underwriting - ' + record.aralCode + ' - ' + record.clientName;
+  var subject = '[ARAL] Ready for Underwriting - ' + record.aralCode + ' - ' + clientLabel_(record);
   var body = [
-    record.clientName + ' (' + record.aralCode + ', ' + record.policyType + ') is 100% vetted and ready for TATIL Underwriting.',
+    clientLabel_(record) + ' (' + record.aralCode + ', ' + record.coverageType + ') is 100% vetted and ready for TATIL Underwriting.',
     'Drive folder: ' + record.folderUrl,
     'Agent: ' + record.agentName + ' <' + record.agentEmail + '>'
   ].join('\n');

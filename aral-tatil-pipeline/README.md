@@ -13,22 +13,35 @@ Workspace web app with no server to host.
 
 ## What it does
 
-1. An agent submits the Google Form (client details + four document
-   uploads).
+1. An agent submits the live "ARAL Motor Insurance Lead Intake" Google
+   Form (producer/branch info, client & vehicle details, and the
+   compliance document uploads).
 2. An installable trigger fires, which:
-   - Creates a Drive folder `[ARAL-CODE]_[Client_Name]_[Policy_Type]`
-     and moves the uploaded files into it.
-   - Scores the submission 0–100% against the Motor Insurance checklist.
+   - Creates a Drive folder `[ARAL-CODE]_Pending-Name_[Coverage_Type]`
+     and moves the uploaded files into it. (Client Name isn't on the
+     form — see "Client Name" below.)
+   - Scores the submission 0–100% against the checklist in "Vetting
+     rules" below.
    - Moves the folder into the matching pipeline stage.
    - Logs a row to the `Pipeline_Tracker` sheet (the dashboard's data
      source).
    - Emails the agent the exact missing items if anything's incomplete,
      or emails Underwriting if it's 100% ready.
-3. Admins work the **Admin Dashboard** (desktop) to flag, request info,
-   approve, or mark a TATIL policy number as issued — each action moves
-   the Drive folder and re-notifies the agent.
+3. Admins work the **Admin Dashboard** (desktop) to set the client's
+   name, flag, request info, approve, or mark a TATIL policy number as
+   issued — each action moves the Drive folder and re-notifies the
+   agent.
 4. Agents work the **Agent Portal** (mobile-first) to see their own
    submissions and re-upload exactly the documents that are missing.
+
+### Client Name
+
+The form doesn't collect a client name as its own field — the client's
+legal name is read off the **DP Licence** upload, since that has to be
+exact. So a fresh submission shows up with no name until an admin opens
+it, looks at the uploaded DP Licence, and clicks **Set name** on the
+Admin Dashboard (`AdminController.admin_setClientName`). That both
+updates the tracker row and renames the Drive folder to match.
 
 ## Drive folder architecture
 
@@ -45,21 +58,39 @@ Properties, so the structure is created once and then just reused.
 
 ## Vetting rules (Motor Insurance)
 
-Each worth 25%:
+The score is `(required items satisfied) / (required items for this
+submission) × 100` — the required-item count varies per submission, it
+isn't a fixed set of four.
 
-| Check | Notes |
+**Always required:**
+
+| Item | Form source |
 |---|---|
-| Driver's Permit | Must be uploaded **and** not expired (checked against the permit expiry date on the form) |
-| Vehicle Certified Copy | Must be uploaded |
-| Vehicle Valuation | Only required — and only scored — when Policy Type is **Comprehensive**; waived (auto-counted) for Third Party |
-| Proof of Address / Utility Bill | Must be uploaded **and** dated within the last 90 days |
+| DP Licence | `Upload DP Licence` (file) |
+| Certified Copy, **or** Vehicle Specs as a fallback | `Upload Certified Copy` (file) **or** `Vehicle Specs (Reg #, Make/Model, Year, CC)` (text) — the form's own note says Vehicle Specs is an acceptable stand-in when a certified copy can't be provided, e.g. for a quote requested before the vehicle is even purchased |
+| Proof of Address | `Proof Of Address` (file) |
+| Value of Vehicle | `Value Of vehicle` (text) — always needed to produce a quote, regardless of coverage |
+
+**Conditionally required:**
+
+| Item | Required when | Waived when |
+|---|---|---|
+| Certified Copy *specifically* (the Vehicle Specs fallback above no longer counts) | `Is this vehicle newly purchased?` = `No` — i.e. they've had it a while, so the actual document should exist, not just dealership specs | Vehicle was newly/recently purchased (`Yes`) |
+| NCD Letter | `How much is your client's NCD` ≠ `NONE` (an actual discount/history is being claimed) | NCD level is `NONE`, **or** `Do you have an NCD Letter?` indicates a first-time/new driver (no history can exist yet) |
+| Claim History Letter | `Do you have a Claim History` = `Yes` | No claim history, **or** first-time/new driver (same exemption as above) |
+| Certificate of Registration (**business** registration — proof the vehicle's policy is written to a company, not an individual) | `Coverage Type` = `Corporate Comprehensive` | Any other coverage type |
+
+The new-driver exemption is computed once at submission time and saved
+to the tracker row (`New Driver` column), so it's still honored
+correctly if the record is re-scored later (e.g. after an agent
+re-uploads a document) — the original form answer isn't re-askable at
+that point.
 
 Routing:
 
 - **100%** → `Ready for Underwriting`, folder moves to `03_Ready_For_Underwriting`, Underwriting is emailed.
-- **Only the valuation is missing** (and the Comprehensive policy needs one) → `Needs Supplemental Info`, folder moves to `02_Needs_Supplemental_Info`.
-- **Anything else missing** (permit, cert copy, or utility bill) → `Incomplete / Flagged`, folder moves to `01_Incomplete_Flagged`, and the agent is emailed the exact missing items.
-- An admin can also manually flag a submission (e.g. for suspected misinformation) from the dashboard regardless of score — that always re-routes to `01` and emails the agent with the admin's note.
+- **Anything required is missing** → `Incomplete / Flagged`, folder moves to `01_Incomplete_Flagged`, and the agent is emailed the exact missing items.
+- An admin can also manually flag a submission (e.g. for suspected misinformation, an expired permit, or a stale utility bill — none of which the form gives a date to check automatically) from the dashboard regardless of score — that always re-routes to `01` and emails the agent with the admin's note. **Request Supplemental Info** is how `02_Needs_Supplemental_Info` gets used — it's admin-only, not something the automated score routes into on its own (e.g. if TATIL comes back asking for something extra that isn't on the standard checklist).
 
 ## Project layout
 
@@ -91,23 +122,34 @@ folder structure, and the web app deployment (deployed with "Execute
 as: Me", so it always runs as `aral@enbfocus.com` regardless of who's
 viewing).
 
-1. **Create the Google Form.** Add these exact questions (titles must
-   match `CONFIG.FORM_FIELDS` in `Config.gs` — edit that file instead if
-   you'd rather use your own wording):
+1. **The Google Form already exists** ("ARAL Motor Insurance Lead
+   Intake") — this script is written to match it exactly. `Config.gs`'s
+   `CONFIG.FORM_FIELDS` lists every question title it reads by:
 
-   | Question title | Type |
+   | `CONFIG.FORM_FIELDS` key | Exact question title on the live form |
    |---|---|
-   | Client Full Name | Short answer |
-   | Agent Name | Short answer |
-   | Agent Email | Short answer (or use the Form's built-in "collect email" instead and adjust `Config.gs`) |
-   | Policy Type | Multiple choice — include an option containing the word "Comprehensive" and one for Third Party |
-   | Vehicle Registration Number | Short answer |
-   | Upload: Driver's Permit | File upload |
-   | Driver's Permit Expiry Date | Date |
-   | Upload: Vehicle Certified Copy | File upload |
-   | Upload: Vehicle Valuation (Comprehensive only) | File upload |
-   | Upload: Proof of Address / Utility Bill | File upload |
-   | Utility Bill Date | Date |
+   | `PRODUCER_NAME` | Producer Name |
+   | `BRANCH` | Branch |
+   | `DP_LICENCE_FILE` | Upload DP Licence |
+   | `ID_FILE` | Upload ID |
+   | `CERT_OF_REGISTRATION_FILE` | Certificate of Registration |
+   | `VEHICLE_INVOICE_FILE` | Upload Vehicle Invoice |
+   | `CERTIFIED_COPY_FILE` | Upload Certified Copy |
+   | `PROOF_OF_ADDRESS_FILE` | Proof Of Address |
+   | `NEWLY_PURCHASED` | Is this vehicle newly purchased? |
+   | `HAS_NCD_LETTER_Q` | Do you have an NCD Letter? |
+   | `NCD_LETTER_FILE` | NCD Letter |
+   | `NCD_LEVEL` | How much is your client's NCD (No Claim Discount) |
+   | `COVERAGE_TYPE` | Coverage Type |
+   | `VALUE_OF_VEHICLE` | Value Of vehicle |
+   | `VEHICLE_SPECS` | Vehicle Specs (Reg #, Make/Model, Year, CC) |
+   | `CLAIM_HISTORY_Q` | Do you have a Claim History |
+   | `CLAIM_HISTORY_LETTER_FILE` | Claim History Letter |
+   | `AGENT_EMAIL` | *(not a typed question — Google's built-in "Email Address" field from "Collect email addresses")* |
+
+   If a question gets reworded on the live form later, update the
+   matching string here — the trigger matches by exact title and will
+   silently treat a renamed field as blank otherwise.
 
 2. **Link the Form to a new Google Sheet** (Form → Responses tab → the
    green Sheets icon).
@@ -144,11 +186,13 @@ viewing).
      for both admins and agents; the app shows each their own view
      automatically.
 
-7. **Test it**: submit the Form once with all four documents and valid
-   dates, confirm a folder lands in `03_Ready_For_Underwriting` and a row
-   appears in `Pipeline_Tracker`. Submit again missing a document and
+7. **Test it**: submit the Form once with every document the checklist in
+   "Vetting rules" above would require for your test answers, confirm a
+   folder lands in `03_Ready_For_Underwriting` and a row appears in
+   `Pipeline_Tracker`. Submit again missing a required document and
    confirm it lands in `01_Incomplete_Flagged` and the agent gets an
-   email.
+   email. Then open the Admin Dashboard and use **Set name** on that row
+   to confirm the Client Name / folder-rename flow works.
 
 ## Useful maintenance functions
 

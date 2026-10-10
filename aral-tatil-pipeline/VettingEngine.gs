@@ -1,74 +1,94 @@
 /**
  * Motor insurance readiness scoring.
  *
- * Each of the four checks is worth 25%. Vehicle valuation is only
- * required (and only scored) when the policy is Comprehensive, so a
- * Third Party submission can still reach 100% without one.
+ * Unlike a fixed checklist, which documents are actually required varies
+ * per submission:
+ *  - Always required: DP Licence, (Certified Copy OR Vehicle Specs as a
+ *    fallback - a client can get a quote before buying, using dealership
+ *    specs, so at least one of the two is always needed), Proof of
+ *    Address, Value of Vehicle.
+ *  - Certified Copy specifically (not just the Vehicle Specs fallback):
+ *    required once the vehicle is already purchased - i.e. "Is this
+ *    vehicle newly purchased?" = No, meaning they've had it a while and
+ *    should have the actual document, not just dealership specs.
+ *  - NCD Letter: required unless the client has no NCD to prove (NCD
+ *    level is "NONE") or is a first-time/new driver (no history exists).
+ *  - Claim History Letter: required only if the client has a claim
+ *    history, except waived entirely for a first-time/new driver.
+ *  - Certificate of Registration: required only when Coverage Type is
+ *    Corporate Comprehensive - that document is proof of the *business's*
+ *    registration, needed because the policy is written out to the
+ *    company rather than the individual driving the vehicle.
  */
 
-function isComprehensive_(policyType) {
-  if (!policyType) return false;
-  var lower = String(policyType).toLowerCase();
-  return CONFIG.COMPREHENSIVE_VALUES.some(function (v) { return lower.indexOf(v) !== -1; });
+function isNewDriver_(hasNcdLetterAnswer) {
+  if (!hasNcdLetterAnswer) return false;
+  var lower = String(hasNcdLetterAnswer).toLowerCase();
+  return CONFIG.NEW_DRIVER_MARKERS.some(function (marker) { return lower.indexOf(marker) !== -1; });
 }
 
-function daysBetween_(earlier, later) {
-  var MS_PER_DAY = 24 * 60 * 60 * 1000;
-  return Math.floor((later.getTime() - earlier.getTime()) / MS_PER_DAY);
+function isCorporateCoverage_(coverageType) {
+  return String(coverageType || '').toLowerCase().indexOf('corporate') !== -1;
+}
+
+/** "Is this vehicle newly purchased?" = No means they've had it a while, i.e. it's already purchased. */
+function isAlreadyPurchased_(newlyPurchasedAnswer) {
+  return String(newlyPurchasedAnswer || '').trim().toLowerCase() === 'no';
 }
 
 /**
  * @param {Object} record
- *   policyType {string}, hasPermit {boolean}, permitExpiry {Date|null},
- *   hasVehicleCert {boolean}, hasValuation {boolean},
- *   hasUtilityBill {boolean}, utilityBillDate {Date|null}
+ *   hasDpLicence, hasCertifiedCopy, hasVehicleSpecsText, hasProofOfAddress,
+ *   hasValueOfVehicle {boolean}
+ *   ncdLevel {string} - "How much is your client's NCD" answer
+ *   newDriver {boolean} - derived once (via isNewDriver_) from "Do you have
+ *     an NCD Letter?" at submission time, then persisted on the tracker
+ *     row and passed back in on every re-evaluation, since the original
+ *     form answer isn't re-askable at re-upload time.
+ *   hasNcdLetterFile {boolean}
+ *   claimHistoryAnswer {string} - "Do you have a Claim History" answer ("Yes"/"No")
+ *   hasClaimHistoryLetterFile {boolean}
+ *   coverageType {string} - "Coverage Type" answer
+ *   hasCertOfRegistration {boolean}
+ *   newlyPurchased {string} - "Is this vehicle newly purchased?" answer ("Yes"/"No")
  * @return {{score:number, statusKey:string, missing:string[]}}
  */
 function evaluateSubmission_(record) {
   var missing = [];
-  var score = 0;
-  var now = new Date();
+  var required = 0;
+  var satisfied = 0;
+  var newDriver = !!record.newDriver;
+  var alreadyPurchased = isAlreadyPurchased_(record.newlyPurchased);
 
-  var permitValid = record.hasPermit && record.permitExpiry instanceof Date &&
-    record.permitExpiry.getTime() >= now.getTime();
-  if (permitValid) {
-    score += 25;
-  } else {
-    missing.push(record.hasPermit ? "Driver's Permit has expired" : "Driver's Permit not uploaded");
-  }
+  var checks = [
+    { required: true, ok: record.hasDpLicence, label: 'DP Licence not uploaded' },
+    { required: true, ok: record.hasCertifiedCopy || record.hasVehicleSpecsText, label: 'Certified Copy not uploaded (and no Vehicle Specs given as a fallback)' },
+    { required: true, ok: record.hasProofOfAddress, label: 'Proof of Address not uploaded' },
+    { required: true, ok: record.hasValueOfVehicle, label: 'Value of Vehicle not provided' },
+    { required: alreadyPurchased, ok: record.hasCertifiedCopy, label: 'Certified Copy not uploaded (required once the vehicle is already purchased - dealership specs are no longer enough)' }
+  ];
 
-  if (record.hasVehicleCert) {
-    score += 25;
-  } else {
-    missing.push('Vehicle Certified Copy not uploaded');
-  }
+  var ncdRequired = !newDriver && String(record.ncdLevel || '').toUpperCase() !== CONFIG.NCD_NONE_VALUE;
+  checks.push({ required: ncdRequired, ok: record.hasNcdLetterFile, label: 'NCD Letter not uploaded' });
 
-  var valuationRequired = isComprehensive_(record.policyType);
-  if (!valuationRequired) {
-    score += 25; // Not applicable for Third Party, so it can't dock the score.
-  } else if (record.hasValuation) {
-    score += 25;
-  } else {
-    missing.push('Vehicle Valuation not uploaded (required for Comprehensive)');
-  }
+  var claimHistoryRequired = !newDriver && String(record.claimHistoryAnswer || '').toLowerCase() === 'yes';
+  checks.push({ required: claimHistoryRequired, ok: record.hasClaimHistoryLetterFile, label: 'Claim History Letter not uploaded' });
 
-  var utilityBillRecent = record.hasUtilityBill && record.utilityBillDate instanceof Date &&
-    daysBetween_(record.utilityBillDate, now) <= CONFIG.UTILITY_BILL_MAX_AGE_DAYS;
-  if (utilityBillRecent) {
-    score += 25;
-  } else {
-    missing.push(record.hasUtilityBill ? 'Utility Bill is older than 90 days' : 'Proof of Address / Utility Bill not uploaded');
-  }
+  var certOfRegistrationRequired = isCorporateCoverage_(record.coverageType);
+  checks.push({ required: certOfRegistrationRequired, ok: record.hasCertOfRegistration, label: 'Certificate of Registration (business) not uploaded' });
 
-  var statusKey;
-  if (score === 100) {
-    statusKey = 'READY';
-  } else if (valuationRequired && missing.length === 1 && missing[0].indexOf('Valuation') !== -1) {
-    // The only gap is extra underwriting info (valuation) - KYC itself is complete.
-    statusKey = 'SUPPLEMENTAL';
-  } else {
-    statusKey = 'INCOMPLETE';
-  }
+  checks.forEach(function (check) {
+    if (!check.required) return;
+    required++;
+    if (check.ok) {
+      satisfied++;
+    } else {
+      missing.push(check.label);
+    }
+  });
+
+  var score = required === 0 ? 100 : Math.round((satisfied / required) * 100);
+  var statusKey = score === 100 ? 'READY' : 'INCOMPLETE';
 
   return { score: score, statusKey: statusKey, missing: missing };
 }
