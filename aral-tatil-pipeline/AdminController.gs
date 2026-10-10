@@ -125,6 +125,13 @@ function admin_approveForUnderwriting(line, aralCode) {
   return admin_getDashboardData(line);
 }
 
+/**
+ * Final step: confirms payment and issues the policy. Not hard-gated on
+ * Policy Stage (an admin can use this as a quick override outside the
+ * normal forms/payment flow, e.g. a policy handled by phone), but
+ * always sends the "you're covered" notification to client, agent, and
+ * admins on completion either way.
+ */
 function admin_markPolicyIssued(line, aralCode, tatilPolicyNumber) {
   assertIsAdmin_();
   if (!tatilPolicyNumber) throw new Error('A TATIL policy number is required.');
@@ -136,8 +143,11 @@ function admin_markPolicyIssued(line, aralCode, tatilPolicyNumber) {
 
   updateRowFields_(line, rowNum, {
     STATUS: CONFIG.STATUS.COMPLETED,
+    POLICY_STAGE: CONFIG.POLICY_STAGE.POLICY_CONFIRMED,
     TATIL_POLICY_NUMBER: tatilPolicyNumber
   });
+
+  notifyPolicyConfirmed_(readRowAsRecord_(line, rowNum));
   return admin_getDashboardData(line);
 }
 

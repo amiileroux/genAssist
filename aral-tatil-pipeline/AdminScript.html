@@ -101,7 +101,8 @@
         '<td class="px-3 py-2 whitespace-nowrap text-slate-500">' + fmtDate(r.submittedAt) + '</td>' +
         '<td class="px-3 py-2"><span class="font-semibold">' + r.score + '%</span></td>' +
         '<td class="px-3 py-2"><span class="inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium ' + statusColor(r.status) + '">' + escapeHtml(r.status) + '</span>' +
-        (r.missing && r.missing.length ? '<div class="text-xs text-rose-500 mt-1">' + escapeHtml(r.missing.join(', ')) + '</div>' : '') + '</td>' +
+        (r.missing && r.missing.length ? '<div class="text-xs text-rose-500 mt-1">' + escapeHtml(r.missing.join(', ')) + '</div>' : '') +
+        (r.policyStage ? '<div class="text-xs text-slate-500 mt-1">' + escapeHtml(r.policyStage) + '</div>' : '') + '</td>' +
         '<td class="px-3 py-2">' + (r.folderUrl ? '<a href="' + r.folderUrl + '" target="_blank" class="text-sky-600 underline text-xs">Open folder</a>' : '') + '</td>');
 
       var actionsTd = document.createElement('td');
@@ -109,7 +110,14 @@
       actionsTd.appendChild(actionButton('Flag Incomplete', 'border-rose-300 text-rose-700 hover:bg-rose-50', function () { openNoteModal(r, 'flag'); }));
       actionsTd.appendChild(actionButton('Request Info', 'border-amber-300 text-amber-700 hover:bg-amber-50', function () { openNoteModal(r, 'supplemental'); }));
       actionsTd.appendChild(actionButton('Approve', 'border-aral-light text-aral-dark hover:bg-aral-light/10', function () { approve(r); }));
-      actionsTd.appendChild(actionButton('Mark Issued', 'border-sky-300 text-sky-700 hover:bg-sky-50', function () { openPolicyModal(r); }));
+
+      if (r.status === 'Ready for Underwriting' && !r.policyStage) {
+        actionsTd.appendChild(actionButton('Send Application Forms', 'border-aral-dark text-aral-dark hover:bg-aral-light/10', function () { sendApplicationForms(r); }));
+      }
+      if (r.policyStage === 'Signed - Pending ARAL Approval') {
+        actionsTd.appendChild(actionButton('Approve Signed Forms', 'border-aral-dark text-aral-dark hover:bg-aral-light/10', function () { approveSignedForms(r); }));
+      }
+      actionsTd.appendChild(actionButton('Confirm Payment & Issue', 'border-sky-300 text-sky-700 hover:bg-sky-50', function () { openPolicyModal(r); }));
       tr.appendChild(actionsTd);
       body.appendChild(tr);
     });
@@ -148,6 +156,16 @@
   function approve(record) {
     if (!confirm('Approve ' + (record.clientName || 'this submission') + ' and route to Underwriting?')) return;
     google.script.run.withSuccessHandler(onDashboardUpdated).withFailureHandler(handleError).admin_approveForUnderwriting(record.line, record.aralCode);
+  }
+
+  function sendApplicationForms(record) {
+    if (!confirm('Send application forms to ' + (record.clientName || 'this client') + ' for signature?')) return;
+    google.script.run.withSuccessHandler(onDashboardUpdated).withFailureHandler(handleError).admin_sendApplicationForms(record.line, record.aralCode);
+  }
+
+  function approveSignedForms(record) {
+    if (!confirm('Approve the signed application for ' + (record.clientName || 'this client') + ' and send the payment link?')) return;
+    google.script.run.withSuccessHandler(onDashboardUpdated).withFailureHandler(handleError).admin_approveSignedForms(record.line, record.aralCode);
   }
 
   function openPolicyModal(record) {

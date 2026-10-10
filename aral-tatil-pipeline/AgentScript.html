@@ -34,7 +34,17 @@
     certOfRegistration: 'Certificate of Registration (business)',
     directorsIdDp: 'Directors ID & DP',
     propertyImage: 'Property Image',
-    propertyEvaluationReport: 'Property Evaluation Report'
+    propertyEvaluationReport: 'Property Evaluation Report',
+    signedApplication: 'Signed Application',
+    paymentProof: 'Payment Proof'
+  };
+
+  var POLICY_STAGE = {
+    FORMS_SENT: 'Forms Sent - Awaiting Signature',
+    SIGNED_PENDING_APPROVAL: 'Signed - Pending ARAL Approval',
+    APPROVED_PENDING_PAYMENT: 'Approved - Payment Link Sent',
+    PAYMENT_PENDING_CONFIRMATION: 'Payment Submitted - Pending Confirmation',
+    POLICY_CONFIRMED: 'Policy Confirmed - Client Covered'
   };
 
   // Maps a missing-item label from VettingEngine.gs / PropertyVettingEngine.gs
@@ -117,6 +127,9 @@
         card.appendChild(list);
       }
 
+      var stageSection = renderPolicyStageSection(r);
+      if (stageSection) card.appendChild(stageSection);
+
       if (r.folderUrl) {
         var link = document.createElement('a');
         link.href = r.folderUrl;
@@ -128,6 +141,64 @@
 
       host.appendChild(card);
     });
+  }
+
+  /** Builds the "what's next" box for a card based on Policy Stage - only shown once a submission is Ready/past vetting. */
+  function renderPolicyStageSection(r) {
+    if (!r.policyStage) return null;
+    var box = document.createElement('div');
+    box.className = 'mt-3 bg-aral-light/10 border border-aral-light rounded-md p-3 space-y-2';
+
+    if (r.policyStage === POLICY_STAGE.FORMS_SENT) {
+      box.innerHTML = '<p class="text-xs text-aral-dark font-medium">Application forms sent - awaiting the client\'s signature.</p>';
+      if (r.signedDocUrl) {
+        box.innerHTML += '<a href="' + r.signedDocUrl + '" target="_blank" class="block text-xs text-sky-600 underline">Open the application document</a>';
+      }
+      var signedOnlineBtn = document.createElement('button');
+      signedOnlineBtn.textContent = 'Client signed online';
+      signedOnlineBtn.className = 'text-xs font-medium px-2 py-1 rounded-md bg-aral-dark text-white mr-2';
+      signedOnlineBtn.addEventListener('click', function () { markFormsSigned(r); });
+      box.appendChild(signedOnlineBtn);
+      var uploadScanBtn = document.createElement('button');
+      uploadScanBtn.textContent = 'Upload signed scan instead';
+      uploadScanBtn.className = 'text-xs font-medium px-2 py-1 rounded-md border border-aral-dark text-aral-dark';
+      uploadScanBtn.addEventListener('click', function () { startUpload(r.line, r.aralCode, 'signedApplication'); });
+      box.appendChild(uploadScanBtn);
+      return box;
+    }
+
+    if (r.policyStage === POLICY_STAGE.SIGNED_PENDING_APPROVAL) {
+      box.innerHTML = '<p class="text-xs text-aral-dark font-medium">Signed application submitted - awaiting ARAL approval.</p>';
+      return box;
+    }
+
+    if (r.policyStage === POLICY_STAGE.APPROVED_PENDING_PAYMENT) {
+      box.innerHTML = '<p class="text-xs text-aral-dark font-medium">Approved! Client can pay via the TATIL payment link in their email.</p>';
+      var uploadProofBtn = document.createElement('button');
+      uploadProofBtn.textContent = 'Upload payment proof';
+      uploadProofBtn.className = 'text-xs font-medium px-2 py-1 rounded-md bg-aral-dark text-white';
+      uploadProofBtn.addEventListener('click', function () { startUpload(r.line, r.aralCode, 'paymentProof'); });
+      box.appendChild(uploadProofBtn);
+      return box;
+    }
+
+    if (r.policyStage === POLICY_STAGE.PAYMENT_PENDING_CONFIRMATION) {
+      box.innerHTML = '<p class="text-xs text-aral-dark font-medium">Payment proof submitted - awaiting ARAL confirmation.</p>';
+      return box;
+    }
+
+    if (r.policyStage === POLICY_STAGE.POLICY_CONFIRMED) {
+      box.innerHTML = '<p class="text-xs text-aral-dark font-medium">&#127881; Policy confirmed' +
+        (r.tatilPolicyNumber ? ' - TATIL ' + escapeHtml(r.tatilPolicyNumber) : '') + '. Client is covered.</p>';
+      return box;
+    }
+
+    return null;
+  }
+
+  function markFormsSigned(record) {
+    if (!confirm('Confirm the client has signed and saved the application online?')) return;
+    google.script.run.withSuccessHandler(loadRecords).withFailureHandler(handleError).agent_markFormsSigned(record.line, record.aralCode);
   }
 
   function handleError(err) {
