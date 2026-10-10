@@ -129,16 +129,14 @@ that point.
 | Contents for Residential | `Type of Occupancy` is `Residential` *(inferred — the question has no asterisk on the form, but only makes sense for a residential policy)* | Any other occupancy | `Contents for Residential` (text) |
 | Property Evaluation Report | `Type of Occupancy` is anything **except** `Contents ONLY` — a contents-only policy doesn't insure the building, so there's nothing to evaluate | `Contents ONLY` | `Upload Property Evaluation Report` (file) |
 
-> **These three fields (`Value of Contents`, `Upload Property Evaluation
-> Report`, `Upload Property Image`) need to be added to the live Form**
-> with these exact titles before this checklist works — the Form didn't
-> have them when the pipeline was first built (Section 3's own subtitle
-> promised "required sums insured for proper risk assessment," but no
-> such field existed yet). Add `Value of Contents` as a short-answer
-> question near `Contents for Residential` in Section 3, `Upload
-> Property Evaluation Report` as a file upload in the same section, and
-> `Upload Property Image` as a file upload in Section 2 alongside
-> `Upload Proof Of Address`.
+> `Value of Contents`, `Upload Property Evaluation Report`, and `Upload
+> Property Image` are created automatically if you use `FormBuilder.gs`
+> (see Setup below). If you're hand-building or editing the Form
+> instead, add `Value of Contents` as a short-answer question near
+> `Contents for Residential` in Section 3, `Upload Property Evaluation
+> Report` as a file upload in the same section, and `Upload Property
+> Image` as a file upload in Section 2 alongside `Upload Proof Of
+> Address` — with these exact titles, or the trigger won't pick them up.
 
 Routing (same for both lines):
 
@@ -150,6 +148,7 @@ Routing (same for both lines):
 
 ```
 appsscript.json         Manifest (time zone, web app access, OAuth scopes)
+FormBuilder.gs           One-time: builds both Forms from scratch and auto-links them to this Sheet (see Setup)
 Code.gs                  doGet, the shared onFormSubmit trigger + per-line handlers, setup, reprocessing
 Config.gs                CONFIG.LINES.MOTOR / CONFIG.LINES.PROPERTY - form field titles, Drive/tracker names, ARAL prefixes, cutoff hour
 DriveManager.gs          Per-line folder creation/lookup, moving folders between stages, moving uploaded files
@@ -178,12 +177,31 @@ Drive folder structure, and the web app deployment (deployed with
 "Execute as: Me", so it always runs as `aral@enbfocus.com` regardless
 of who's viewing).
 
-1. **Both Google Forms already exist** ("ARAL Motor Insurance Lead
-   Intake" and "ARAL House & Commercial Property Insurance Lead
-   Intake") — this script is written to match them exactly.
-   `Config.gs`'s `CONFIG.LINES.MOTOR.FORM_FIELDS` and
-   `CONFIG.LINES.PROPERTY.FORM_FIELDS` list every question title each
-   reads by:
+1. **Create both Google Forms by running `FormBuilder.gs`.** Open the
+   Sheet → Extensions → Apps Script (same project as the rest of this
+   pipeline), paste in `FormBuilder.gs` alongside the other files
+   (`appsscript.json` needs the `.../auth/forms` scope this project's
+   manifest already includes), then run `createBothForms()` once from
+   the function dropdown — the first run will prompt you to authorize
+   Forms access, approve it. This builds
+   both Forms from scratch with every question `Config.gs` expects,
+   links each one's responses into this Sheet, and renames the
+   resulting response tabs to match `CONFIG.LINES.MOTOR.RESPONSE_SHEET_NAME`
+   / `CONFIG.LINES.PROPERTY.RESPONSE_SHEET_NAME` automatically — no
+   manual Form-linking step needed. Check **View → Logs** afterward for
+   each Form's edit and live URL.
+
+   `FormBuilder.gs`'s own header comment lists what it can't reproduce
+   (the ARAL logo/header image — add that afterward via each Form's own
+   **Customize theme** button, since Google's API has no way to set it
+   programmatically — and the Property form's original welcome-page copy
+   and Section 2 subtitle, which weren't available when it was written
+   and are left as placeholders to replace with your real wording).
+
+   If you'd rather hand-build or edit a Form yourself instead, every
+   question title it reads is listed in `CONFIG.LINES.MOTOR.FORM_FIELDS`
+   and `CONFIG.LINES.PROPERTY.FORM_FIELDS` — reproduced here for
+   reference:
 
    **Motor:**
 
@@ -217,31 +235,34 @@ of who's viewing).
    | `DP_LICENCE_FILE` | Upload DP Licence |
    | `ID_FILE` | Upload ID |
    | `PROOF_OF_ADDRESS_FILE` | Upload Proof Of Address |
-   | `PROPERTY_IMAGE_FILE` | Upload Property Image *(needs adding — see "Vetting rules → Property")* |
+   | `PROPERTY_IMAGE_FILE` | Upload Property Image |
    | `DIRECTORS_ID_DP_FILE` | Upload Directors ID & DP |
    | `OCCUPANCY_TYPE` | Type of Occupancy |
    | `RESIDENTIAL_CONTENTS` | Contents for Residential |
-   | `VALUE_OF_CONTENTS` | Value of Contents *(needs adding)* |
-   | `PROPERTY_EVALUATION_REPORT_FILE` | Upload Property Evaluation Report *(needs adding)* |
+   | `VALUE_OF_CONTENTS` | Value of Contents |
+   | `PROPERTY_EVALUATION_REPORT_FILE` | Upload Property Evaluation Report |
    | `AGENT_EMAIL` | *(built-in "Email Address" field, see below)* |
 
    `AGENT_EMAIL` isn't a typed question on either form — it's Google's
    built-in field from turning on "Collect email addresses" in Form
-   settings, which always shows up in submissions as `Email Address`.
+   settings, which always shows up in submissions as `Email Address`
+   (`FormBuilder.gs` turns this on automatically via `setCollectEmail(true)`).
 
    If a question gets reworded on either live form later, update the
    matching string here — the trigger matches by exact title and will
    silently treat a renamed field as blank otherwise.
 
-2. **Link both Forms to the same Google Sheet** (on each Form's
-   Responses tab, click the green Sheets icon, and choose "Select
-   existing spreadsheet" for the second one so both land in one Sheet).
-   Each Form gets its own response tab (Google names them "Form
-   Responses 1", "Form Responses 2", etc.) — **rename each tab**, or
-   update `CONFIG.LINES.MOTOR.RESPONSE_SHEET_NAME` /
+2. **Confirm both Forms' responses are linked to this Sheet.** If you
+   used `FormBuilder.gs` in step 1, this is already done — skip to step
+   3. If you built or are using a Form by hand instead: on its Responses
+   tab, click the green Sheets icon and choose "Select existing
+   spreadsheet" so it lands in this one. Each Form gets its own response
+   tab (Google names them "Form Responses 1", "Form Responses 2", etc.)
+   — **rename each tab**, or update
+   `CONFIG.LINES.MOTOR.RESPONSE_SHEET_NAME` /
    `CONFIG.LINES.PROPERTY.RESPONSE_SHEET_NAME` in `Config.gs` to match
-   whatever they're actually called. The trigger uses this to tell
-   which Form a submission came from.
+   whatever they're actually called. The trigger uses this to tell which
+   Form a submission came from.
 
 3. **Open the Sheet → Extensions → Apps Script**, and create each file
    above in the script editor (matching filenames exactly, including the
@@ -307,12 +328,14 @@ Run these from the Apps Script editor's function dropdown when needed:
   `e.namedValues` keyed by that line's exact question titles. If you
   reword a question on either Form, update the matching string in
   `Config.gs` or the trigger will silently treat that field as blank.
-- **Three Property fields need adding to the live Form** before that
-  checklist actually works — `Value of Contents`, `Upload Property
-  Evaluation Report`, and `Upload Property Image` are all referenced in
-  `Config.gs`/`PropertyVettingEngine.gs` but didn't exist on the Form
-  when this was built. See "Vetting rules → Property" above for exactly
-  where each one goes.
+- **`FormBuilder.gs` can't set a Form's header/logo image or know copy
+  it was never shown** — Google's Forms API has no endpoint for theme/
+  header images at all (add the ARAL logo via each Form's own
+  "Customize theme" button after creation), and the Property form's
+  welcome-page text and Section 2 subtitle are left as placeholders in
+  the script since the originals weren't available when it was written.
+  Everything that affects scoring (question titles, options, required
+  flags) is reproduced exactly.
 - **Identity detection depends on the deployment's access setting.**
   With "Anyone within domain" + "Execute as: Me", `Session.getActiveUser()`
   reliably returns the viewer's email, which drives automatic admin/agent
